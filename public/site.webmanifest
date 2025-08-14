@@ -1,0 +1,28 @@
+{
+  "name": "Axie Studio - AI Workflow Platform",
+  "short_name": "Axie Studio",
+  "description": "Advanced AI workflow platform with enterprise-grade user management and automation capabilities",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#000000",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "https://www.axiestudio.se/Axiestudiologo.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://www.axiestudio.se/Axiestudiologo.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "productivity", "utilities"],
+  "lang": "en",
+  "dir": "ltr"
+}

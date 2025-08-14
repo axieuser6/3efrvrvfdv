@@ -1,0 +1,18 @@
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://axiestudio.se/sitemap.xml
+
+# Disallow sensitive areas
+Disallow: /admin
+Disallow: /api/
+Disallow: /.env
+Disallow: /supabase/
+
+# Allow important pages
+Allow: /
+Allow: /login
+Allow: /signup
+Allow: /products
+Allow: /dashboard

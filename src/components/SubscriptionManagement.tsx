@@ -1,0 +1,387 @@
+import React, { useState } from 'react';
+import { AlertTriangle, X, Loader2, RefreshCw, Crown, ArrowRight } from 'lucide-react';
+import { useSubscription } from '../hooks/useSubscription';
+import { useUserAccess } from '../hooks/useUserAccess';
+import { supabase } from '../lib/supabase';
+import { Link } from 'react-router-dom';
+
+export function SubscriptionManagement() {
+  const { subscription, hasActiveSubscription, isCanceled, refetch } = useSubscription();
+  const { hasAccess, isPaidUser, isTrialing, isFreeTrialing } = useUserAccess();
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [canceling, setCanceling] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [openingPortal, setOpeningPortal] = useState(false);
+  const [resubscribing, setResubscribing] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
+
+  const handleCancelSubscription = async () => {
+    if (!subscription?.subscription_id) {
+      setError('No subscription ID found');
+      return;
+    }
+
+    setCanceling(true);
+    setError(null);
+
+    try {
+      console.log('🔄 Canceling subscription:', subscription.subscription_id);
+
+      const { data, error } = await supabase.functions.invoke('cancel-subscription', {
+        body: { subscription_id: subscription.subscription_id }
+      });
+
+      console.log('📡 Function response:', { data, error });
+
+      if (error) {
+        console.error('❌ Function error:', error);
+        throw new Error(error.message || 'Failed to cancel subscription');
+      }
+
+      if (data?.error) {
+        console.error('❌ Data error:', data.error);
+        throw new Error(data.error);
+      }
+
+      console.log('✅ Subscription canceled successfully:', data);
+      alert('✅ Subscription canceled! Your account will be deleted when your current period ends.');
+      setShowCancelModal(false);
+      refetch(); // Refresh subscription data
+
+      // Refresh the page to update all components
+      window.location.reload();
+    } catch (err) {
+      console.error('❌ Error canceling subscription:', err);
+      setError(err instanceof Error ? err.message : 'Failed to cancel subscription');
+    } finally {
+      setCanceling(false);
+    }
+  };
+
+  const handleManageSubscription = async () => {
+    setOpeningPortal(true);
+    setError(null);
+
+    try {
+      console.log('🔄 Creating authenticated Stripe portal session...');
+
+      // Use the API to create an authenticated portal session
+      const { data, error } = await supabase.functions.invoke('create-portal-session');
+
+      console.log('📡 Portal response:', { data, error });
+
+      if (error) {
+        console.error('❌ Portal error:', error);
+        throw new Error(error.message || 'Failed to open customer portal');
+      }
+
+      if (data?.error) {
+        console.error('❌ Portal data error:', data.error);
+        throw new Error(data.error);
+      }
+
+      if (data?.portal_url) {
+        console.log('✅ Opening authenticated portal:', data.portal_url);
+        window.open(data.portal_url, '_blank');
+      } else {
+        throw new Error('No portal URL received');
+      }
+
+    } catch (err) {
+      console.error('❌ Error opening portal:', err);
+      setError(err instanceof Error ? err.message : 'Failed to open customer portal');
+    } finally {
+      setOpeningPortal(false);
+    }
+  };
+
+  const handleResubscribe = async () => {
+    if (!subscription?.subscription_id) {
+      setError('No subscription found');
+      return;
+    }
+
+    setResubscribing(true);
+    setError(null);
+
+    try {
+      console.log('🔄 Re-activating subscription:', subscription.subscription_id);
+
+      const { data, error } = await supabase.functions.invoke('reactivate-subscription', {
+        body: { subscription_id: subscription.subscription_id }
+      });
+
+      console.log('📡 Reactivation response:', { data, error });
+
+      if (error) {
+        console.error('❌ Reactivation error:', error);
+        throw new Error(error.message || 'Failed to reactivate subscription');
+      }
+
+      if (data?.error) {
+        console.error('❌ Reactivation data error:', data.error);
+        throw new Error(data.error);
+      }
+
+      if (data?.success) {
+        console.log('✅ Subscription reactivated successfully');
+        // Refresh the page to update all components
+        window.location.reload();
+      }
+
+    } catch (err) {
+      console.error('❌ Error reactivating subscription:', err);
+      setError(err instanceof Error ? err.message : 'Failed to reactivate subscription');
+    } finally {
+      setResubscribing(false);
+    }
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      refetch();
+      setLastRefresh(new Date());
+      console.log('✅ Subscription status refreshed');
+      // Also refresh the page to update all components
+      setTimeout(() => window.location.reload(), 1000);
+    } catch (err) {
+      console.error('❌ Error refreshing subscription:', err);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  // Determine user state for the 3 situations
+  const isFreeTrial = isFreeTrialing && !hasActiveSubscription;
+  const isSubscribed = hasActiveSubscription && !isCanceled;
+  const isCancelledSubscription = isCanceled;
+
+  return (
+    <>
+      {/* SITUATION 1: Free Trial User - Show Upgrade */}
+      {isFreeTrial && (
+        <div className="bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-blue-200 rounded-none p-6">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-blue-600 text-white flex items-center justify-center rounded-none">
+              <Crown className="w-6 h-6" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-xl font-bold text-blue-900 uppercase tracking-wide">UPGRADE TO PRO</h3>
+              <p className="text-blue-700 text-sm mt-1">
+                Unlock unlimited access to all AI workflow features
+              </p>
+            </div>
+            <Link
+              to="/products"
+              className="flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-none font-bold hover:bg-blue-700 transition-colors uppercase tracking-wide"
+            >
+              UPGRADE NOW
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {/* SITUATION 2: Subscribed User - Show Portal + Cancellation */}
+      {isSubscribed && (
+        <div className="space-y-4">
+          <div className="bg-green-50 border-2 border-green-200 rounded-none p-4">
+            <div className="flex items-center gap-3">
+              <div className="w-5 h-5 bg-green-600 rounded-full flex items-center justify-center">
+                <span className="text-white text-xs">✓</span>
+              </div>
+              <div>
+                <p className="text-green-800 font-bold">Active Subscription</p>
+                <p className="text-green-700 text-sm">Your subscription is active and ready to use.</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Subscription Management Portal */}
+          <div className="bg-blue-50 border-2 border-blue-200 rounded-none p-4">
+            <div className="flex items-start gap-3">
+              <div className="flex-1">
+                <h3 className="font-bold text-blue-900 uppercase tracking-wide">💳 SUBSCRIPTION MANAGEMENT</h3>
+                <p className="text-blue-700 text-sm mt-1">
+                  Manage your subscription, update payment methods, and view invoices through Stripe's secure portal.
+                </p>
+                <div className="mt-3 flex gap-3 items-center">
+                  <button
+                    onClick={handleManageSubscription}
+                    disabled={openingPortal}
+                    className="bg-blue-600 text-white px-4 py-2 font-bold uppercase tracking-wide hover:bg-blue-700 disabled:bg-blue-400 transition-colors border-2 border-blue-700"
+                  >
+                    {openingPortal ? '🔄 OPENING...' : '⚙️ MANAGE SUBSCRIPTION'}
+                  </button>
+                  <button
+                    onClick={handleRefresh}
+                    disabled={refreshing}
+                    className="bg-gray-600 text-white px-3 py-2 font-bold uppercase tracking-wide hover:bg-gray-700 disabled:bg-gray-400 transition-colors border-2 border-gray-700"
+                    title="Refresh subscription status"
+                  >
+                    {refreshing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+
+          {/* Cancel Subscription Option */}
+          <div className="bg-red-50 border-2 border-red-200 rounded-none p-4">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5" />
+              <div className="flex-1">
+                <h3 className="font-bold text-red-900 uppercase tracking-wide">CANCEL SUBSCRIPTION</h3>
+                <p className="text-red-700 text-sm mt-1">
+                  Cancel your subscription. Your account will remain active until the current period ends.
+                </p>
+                <button
+                  onClick={() => setShowCancelModal(true)}
+                  className="mt-3 bg-red-600 text-white px-4 py-2 font-bold uppercase tracking-wide hover:bg-red-700 transition-colors border-2 border-red-700"
+                >
+                  �️ CANCEL SUBSCRIPTION
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SITUATION 3: Cancelled Subscription User - Show Portal + Resubscribe */}
+      {isCancelledSubscription && (
+        <div className="space-y-4">
+          <div className="bg-yellow-50 border-2 border-yellow-200 rounded-none p-4">
+            <div className="flex items-center gap-3">
+              <AlertTriangle className="w-5 h-5 text-yellow-600" />
+              <div>
+                <p className="text-yellow-800 font-bold">Subscription Cancelled</p>
+                <p className="text-yellow-700 text-sm">Your subscription is cancelled and will end at the current period.</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Portal Access */}
+          <div className="bg-blue-50 border-2 border-blue-200 rounded-none p-4">
+            <div className="flex items-start gap-3">
+              <div className="flex-1">
+                <h3 className="font-bold text-blue-900 uppercase tracking-wide">💳 SUBSCRIPTION PORTAL</h3>
+                <p className="text-blue-700 text-sm mt-1">
+                  Access your subscription details and billing history.
+                </p>
+                <button
+                  onClick={handleManageSubscription}
+                  disabled={openingPortal}
+                  className="mt-3 bg-blue-600 text-white px-4 py-2 font-bold uppercase tracking-wide hover:bg-blue-700 disabled:bg-blue-400 transition-colors border-2 border-blue-700"
+                >
+                  {openingPortal ? '🔄 OPENING...' : '⚙️ VIEW PORTAL'}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Resubscribe option */}
+          <div className="bg-green-50 border-2 border-green-200 rounded-none p-4">
+            <div className="flex items-start gap-3">
+              <div className="flex-1">
+                <h3 className="font-bold text-green-900 uppercase tracking-wide">🔄 REACTIVATE SUBSCRIPTION</h3>
+                <p className="text-green-700 text-sm mt-1">
+                  Changed your mind? Reactivate your subscription and get credit for remaining time!
+                </p>
+                <button
+                  onClick={handleResubscribe}
+                  disabled={resubscribing}
+                  className="mt-3 bg-green-600 text-white px-4 py-2 font-bold uppercase tracking-wide hover:bg-green-700 disabled:bg-green-400 transition-colors border-2 border-green-700"
+                >
+                  {resubscribing ? '🔄 REACTIVATING...' : '✅ RE-SUBSCRIBE NOW'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Error Display */}
+      {error && (
+        <div className="bg-red-50 border-2 border-red-200 rounded-none p-4 mt-4">
+          <div className="flex items-center gap-3">
+            <AlertTriangle className="w-5 h-5 text-red-600" />
+            <div>
+              <p className="text-red-800 font-bold">Error</p>
+              <p className="text-red-700 text-sm">{error}</p>
+            </div>
+            <button
+              onClick={() => setError(null)}
+              className="ml-auto text-red-600 hover:text-red-800"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Cancel Confirmation Modal */}
+      {showCancelModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white border-4 border-black max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold uppercase tracking-wide">⚠️ CANCEL SUBSCRIPTION</h2>
+              <button
+                onClick={() => setShowCancelModal(false)}
+                className="text-gray-500 hover:text-black"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="bg-red-50 border-2 border-red-200 p-4">
+                <p className="text-red-900 font-bold mb-2">⚠️ WARNING: ACCOUNT DELETION</p>
+                <p className="text-red-700 text-sm">
+                  When you cancel your subscription:
+                </p>
+                <ul className="text-red-700 text-sm mt-2 space-y-1">
+                  <li>• Your account will be deleted after your current period ends</li>
+                  <li>• All your data will be permanently removed</li>
+                  <li>• Your Axie Studio account will also be deleted</li>
+                  <li>• This action cannot be undone</li>
+                </ul>
+              </div>
+
+              {error && (
+                <div className="bg-red-100 border-2 border-red-300 p-3">
+                  <p className="text-red-800 text-sm">{error}</p>
+                </div>
+              )}
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowCancelModal(false)}
+                  className="flex-1 bg-gray-200 text-black px-4 py-2 font-bold uppercase tracking-wide hover:bg-gray-300 transition-colors border-2 border-gray-400"
+                >
+                  KEEP SUBSCRIPTION
+                </button>
+                <button
+                  onClick={handleCancelSubscription}
+                  disabled={canceling}
+                  className="flex-1 bg-red-600 text-white px-4 py-2 font-bold uppercase tracking-wide hover:bg-red-700 transition-colors border-2 border-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {canceling ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      CANCELING...
+                    </>
+                  ) : (
+                    'YES, CANCEL & DELETE'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
