@@ -120,7 +120,6 @@ export function useUserAccess() {
       } catch (error) {
         console.warn('⚠️ Team membership check failed, continuing with individual access check');
       }
-      }
 
       // BULLETPROOF: Use enhanced access control function
       const { data: accessData, error: accessError } = await supabase.rpc('get_user_access_level', {
