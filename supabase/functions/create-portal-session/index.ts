@@ -125,7 +125,7 @@ serve(async (req) => {
       // Create portal session
       const session = await stripe.billingPortal.sessions.create({
         customer: customerData.customer_id,
-        return_url: `${Deno.env.get('FRONTEND_URL') || 'http://localhost:5173'}/dashboard`,
+        return_url: 'https://authr.axiestudio.se/dashboard',
         configuration: configId
       });
 
@@ -148,7 +148,7 @@ serve(async (req) => {
       // Fallback: create session without configuration
       const session = await stripe.billingPortal.sessions.create({
         customer: customerData.customer_id,
-        return_url: 'http://localhost:5173/dashboard'
+        return_url: 'https://authr.axiestudio.se/dashboard'
       });
 
       console.log(`✅ Fallback portal session created: ${session.url}`);
