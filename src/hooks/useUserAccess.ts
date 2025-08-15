@@ -139,10 +139,8 @@ export function useUserAccess() {
     isPaidUser,
     isTrialing,
     isFreeTrialing,
-    lastFetch,
     refetch: () => {
         setLoading(true);
       }
-    }
-  };
+    };
 }
