@@ -114,6 +114,25 @@ async function createAxieStudioUser(email: string, password: string, userId: str
       };
     }
 
+    // Step 0.5: Check user's subscription status to determine if account should be active
+    console.log(`🔍 Checking user subscription status for: ${userId}`);
+    let shouldBeActive = false;
+
+    try {
+      const { data: userAccess } = await supabase
+        .from('user_access_with_trial_info')
+        .select('*')
+        .eq('user_id', userId)
+        .single();
+
+      // Account should be active if user has access (trial or subscription)
+      shouldBeActive = userAccess?.has_access === true;
+      console.log(`📊 User access status: has_access=${userAccess?.has_access}, access_type=${userAccess?.access_type}`);
+    } catch (error) {
+      console.warn(`⚠️ Could not check user access, defaulting to active: ${error}`);
+      shouldBeActive = true; // Default to active for safety
+    }
+
     // Step 1: Login to AxieStudio to get JWT token
     console.log(`🔐 Logging into AxieStudio...`);
     const loginResponse = await fetch(`${AXIESTUDIO_APP_URL}/api/v1/login`, {
@@ -153,12 +172,12 @@ async function createAxieStudioUser(email: string, password: string, userId: str
     console.log(`✅ API key created: ${api_key.substring(0, 10)}...`);
 
     // Step 3: Create the actual user
-    console.log(`👤 Creating user account...`);
+    console.log(`👤 Creating user account with active status: ${shouldBeActive}...`);
     const userData = {
       username: email,
       password: password,
       email: email,  // Explicitly set email field
-      is_active: true,
+      is_active: shouldBeActive,  // Set based on user's subscription/trial status
       is_superuser: false,
       is_verified: true,  // Mark as verified to avoid approval requirement
       is_staff: false,
@@ -221,7 +240,7 @@ async function createAxieStudioUser(email: string, password: string, userId: str
             'x-api-key': api_key
           },
           body: JSON.stringify({
-            is_active: true,
+            is_active: shouldBeActive,  // Use the determined status
             is_verified: true
           })
         });
@@ -287,19 +306,69 @@ async function deleteAxieStudioUser(email: string): Promise<void> {
       return;
     }
 
-    // Delete user
-    const deleteResponse = await fetch(`${AXIESTUDIO_APP_URL}/api/v1/users/${user.id}?x-api-key=${apiKey}`, {
-      method: 'DELETE',
-      headers: { 'x-api-key': apiKey }
+    // 🚨 CRITICAL FIX: Deactivate instead of delete to preserve user data
+    const deactivateResponse = await fetch(`${AXIESTUDIO_APP_URL}/api/v1/users/${user.id}?x-api-key=${apiKey}`, {
+      method: 'PATCH',
+      headers: {
+        'x-api-key': apiKey,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        is_active: false  // Deactivate account - preserves data, requires admin approval to reactivate
+      })
     });
 
-    if (!deleteResponse.ok) {
-      throw new Error(`Failed to delete Axie Studio user: ${deleteResponse.status}`);
+    if (!deactivateResponse.ok) {
+      throw new Error(`Failed to deactivate Axie Studio user: ${deactivateResponse.status}`);
     }
 
-    console.log(`Successfully deleted Axie Studio user: ${email}`);
+    console.log(`✅ Axie Studio user DEACTIVATED (data preserved): ${email}`);
   } catch (error) {
-    console.error('Error deleting Axie Studio user:', error);
+    console.error('Error deactivating Axie Studio user:', error);
+    throw error;
+  }
+}
+
+// 🚨 NEW FUNCTION: Reactivate AxieStudio user when they resubscribe
+async function reactivateAxieStudioUser(email: string): Promise<void> {
+  try {
+    const apiKey = await getAxieStudioApiKey();
+
+    // Find user by email
+    const usersResponse = await fetch(`${AXIESTUDIO_APP_URL}/api/v1/users/?x-api-key=${apiKey}`);
+
+    if (!usersResponse.ok) {
+      throw new Error(`Failed to fetch users: ${usersResponse.status}`);
+    }
+
+    const usersData = await usersResponse.json();
+    const usersList = usersData.users || usersData;
+    const user = usersList.find((u: any) => u.username === email);
+
+    if (!user) {
+      console.log(`User ${email} not found in Axie Studio for reactivation`);
+      return;
+    }
+
+    // Reactivate user
+    const reactivateResponse = await fetch(`${AXIESTUDIO_APP_URL}/api/v1/users/${user.id}?x-api-key=${apiKey}`, {
+      method: 'PATCH',
+      headers: {
+        'x-api-key': apiKey,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        is_active: true  // Reactivate account
+      })
+    });
+
+    if (!reactivateResponse.ok) {
+      throw new Error(`Failed to reactivate Axie Studio user: ${reactivateResponse.status}`);
+    }
+
+    console.log(`✅ Axie Studio user REACTIVATED: ${email}`);
+  } catch (error) {
+    console.error('Error reactivating Axie Studio user:', error);
     throw error;
   }
 }
@@ -394,9 +463,19 @@ Deno.serve(async (req) => {
 
     if (req.method === 'DELETE' || (req.method === 'POST' && action === 'delete')) {
       await deleteAxieStudioUser(user.email!);
-      
+
       return new Response(
-        JSON.stringify({ success: true, message: 'Axie Studio account deleted successfully' }),
+        JSON.stringify({ success: true, message: 'Axie Studio account deactivated (data preserved)' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // 🚨 NEW ENDPOINT: Reactivate AxieStudio account
+    if (req.method === 'POST' && action === 'reactivate') {
+      await reactivateAxieStudioUser(user.email!);
+
+      return new Response(
+        JSON.stringify({ success: true, message: 'Axie Studio account reactivated successfully' }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }

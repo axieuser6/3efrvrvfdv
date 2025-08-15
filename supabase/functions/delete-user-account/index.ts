@@ -18,6 +18,83 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
+// 🚨 LEGAL COMPLIANCE: Complete AxieStudio account deletion for manual deletion
+async function deleteAxieStudioUserCompletely(email: string): Promise<void> {
+  try {
+    const AXIESTUDIO_APP_URL = Deno.env.get('AXIESTUDIO_APP_URL');
+    const AXIESTUDIO_USERNAME = Deno.env.get('AXIESTUDIO_USERNAME');
+    const AXIESTUDIO_PASSWORD = Deno.env.get('AXIESTUDIO_PASSWORD');
+
+    if (!AXIESTUDIO_APP_URL || !AXIESTUDIO_USERNAME || !AXIESTUDIO_PASSWORD) {
+      throw new Error('Missing AxieStudio environment variables');
+    }
+
+    // Step 1: Login to get API key
+    const loginResponse = await fetch(`${AXIESTUDIO_APP_URL}/api/v1/login/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: AXIESTUDIO_USERNAME,
+        password: AXIESTUDIO_PASSWORD
+      })
+    });
+
+    if (!loginResponse.ok) {
+      throw new Error(`AxieStudio login failed: ${loginResponse.status}`);
+    }
+
+    const loginData = await loginResponse.json();
+    const accessToken = loginData.access_token;
+
+    // Step 2: Create API key
+    const apiKeyResponse = await fetch(`${AXIESTUDIO_APP_URL}/api/v1/api_key/`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ name: `deletion-${Date.now()}` })
+    });
+
+    if (!apiKeyResponse.ok) {
+      throw new Error(`API key creation failed: ${apiKeyResponse.status}`);
+    }
+
+    const { api_key } = await apiKeyResponse.json();
+
+    // Step 3: Find and delete user
+    const usersResponse = await fetch(`${AXIESTUDIO_APP_URL}/api/v1/users/?x-api-key=${api_key}`);
+
+    if (!usersResponse.ok) {
+      throw new Error(`Failed to fetch users: ${usersResponse.status}`);
+    }
+
+    const usersData = await usersResponse.json();
+    const usersList = usersData.users || usersData;
+    const user = usersList.find((u: any) => u.username === email);
+
+    if (!user) {
+      console.log(`User ${email} not found in AxieStudio, skipping deletion`);
+      return;
+    }
+
+    // COMPLETE DELETION for legal compliance
+    const deleteResponse = await fetch(`${AXIESTUDIO_APP_URL}/api/v1/users/${user.id}?x-api-key=${api_key}`, {
+      method: 'DELETE',
+      headers: { 'x-api-key': api_key }
+    });
+
+    if (!deleteResponse.ok) {
+      throw new Error(`Failed to delete AxieStudio user: ${deleteResponse.status}`);
+    }
+
+    console.log(`✅ AxieStudio user COMPLETELY DELETED for legal compliance: ${email}`);
+  } catch (error) {
+    console.error(`❌ Failed to delete AxieStudio user ${email}:`, error);
+    throw error;
+  }
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -133,6 +210,19 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       );
+    }
+
+    // STEP 1.5: 🚨 LEGAL COMPLIANCE - Complete AxieStudio Account Deletion
+    try {
+      console.log('🔄 Deleting AxieStudio account (legal compliance)...');
+
+      if (userEmail) {
+        await deleteAxieStudioUserCompletely(userEmail);
+        console.log('✅ AxieStudio account completely deleted (legal compliance)');
+      }
+    } catch (error) {
+      console.warn('⚠️ AxieStudio deletion failed (non-critical):', error);
+      // Continue with deletion even if AxieStudio fails - user still has right to delete main account
     }
 
     // STEP 2: Comprehensive Stripe cleanup

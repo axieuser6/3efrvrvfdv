@@ -9,6 +9,8 @@ import { AdminPage } from './pages/AdminPage';
 import { TestPage } from './pages/TestPage';
 import { AxieStudioTestPage } from './pages/AxieStudioTestPage';
 import { UserManagementPage } from './pages/UserManagementPage';
+import { ProductDebugPage } from './pages/ProductDebugPage';
+// import { TeamPage } from './pages/TeamPage'; // TEMPORARILY HIDDEN
 import { isSuperAdmin } from './utils/adminAuth';
 import { Loader2 } from 'lucide-react';
 
@@ -65,9 +67,18 @@ function App() {
           path="/account"
           element={user ? <UserManagementPage /> : <Navigate to="/login" replace />}
         />
+        {/* TEAM ROUTE TEMPORARILY HIDDEN */}
+        {/* <Route
+          path="/team"
+          element={user ? <TeamPage /> : <Navigate to="/login" replace />}
+        /> */}
         <Route
           path="/dashboard"
           element={user ? <DashboardPage /> : <Navigate to="/login" replace />}
+        />
+        <Route
+          path="/product-debug"
+          element={user ? <ProductDebugPage /> : <Navigate to="/login" replace />}
         />
         <Route
           path="/"

@@ -62,13 +62,15 @@ async function getAxieStudioApiKey(): Promise<string> {
   }
 }
 
-async function deleteAxieStudioUser(email: string): Promise<void> {
+// 🚨 CRITICAL FIX: Deactivate AxieStudio accounts instead of deleting them
+// This preserves user data for potential reactivation when they resubscribe
+async function deactivateAxieStudioUser(email: string): Promise<void> {
   try {
     const apiKey = await getAxieStudioApiKey();
-    
+
     // Find user by email
     const usersResponse = await fetch(`${AXIESTUDIO_APP_URL}/api/v1/users/?x-api-key=${apiKey}`);
-    
+
     if (!usersResponse.ok) {
       throw new Error(`Failed to fetch users: ${usersResponse.status}`);
     }
@@ -80,28 +82,40 @@ async function deleteAxieStudioUser(email: string): Promise<void> {
     const user = usersList.find((u: any) => u.username === email);
 
     console.log(`Found ${usersData.total_count || usersList.length} users in AxieStudio during cleanup`);
-    console.log(`Looking for user to delete: ${email}`);
+    console.log(`Looking for user to deactivate: ${email}`);
 
     if (!user) {
-      console.log(`User ${email} not found in Axie Studio, skipping deletion`);
+      console.log(`User ${email} not found in Axie Studio, skipping deactivation`);
       return;
     }
 
-    // Delete user
-    const deleteResponse = await fetch(`${AXIESTUDIO_APP_URL}/api/v1/users/${user.id}?x-api-key=${apiKey}`, {
-      method: 'DELETE',
-      headers: { 'x-api-key': apiKey }
+    // 🚨 CRITICAL FIX: Deactivate instead of delete to preserve user data
+    const deactivateResponse = await fetch(`${AXIESTUDIO_APP_URL}/api/v1/users/${user.id}?x-api-key=${apiKey}`, {
+      method: 'PATCH',
+      headers: {
+        'x-api-key': apiKey,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        is_active: false  // Deactivate account - preserves data, requires admin approval to reactivate
+      })
     });
 
-    if (!deleteResponse.ok) {
-      throw new Error(`Failed to delete Axie Studio user: ${deleteResponse.status}`);
+    if (!deactivateResponse.ok) {
+      throw new Error(`Failed to deactivate Axie Studio user: ${deactivateResponse.status}`);
     }
 
-    console.log(`Successfully deleted Axie Studio user: ${email}`);
+    console.log(`✅ Axie Studio user DEACTIVATED (data preserved): ${email}`);
   } catch (error) {
-    console.error('Error deleting Axie Studio user:', error);
+    console.error('Error deactivating Axie Studio user:', error);
     throw error;
   }
+}
+
+// Legacy function name for backward compatibility
+async function deleteAxieStudioUser(email: string): Promise<void> {
+  console.log(`⚠️ LEGACY CALL: deleteAxieStudioUser now deactivates instead of deleting`);
+  await deactivateAxieStudioUser(email);
 }
 
 Deno.serve(async (req) => {
@@ -185,11 +199,13 @@ Deno.serve(async (req) => {
     for (const userToDelete of safeUsersToDelete) {
       try {
         console.log(`Processing deletion for user: ${userToDelete.email}`);
-        
-        // Delete from Axie Studio first
-        await deleteAxieStudioUser(userToDelete.email);
-        
-        // Delete from Supabase auth (this will cascade to other tables)
+
+        // 🚨 CRITICAL FIX: DO NOT DELETE AXIESTUDIO ACCOUNTS
+        // AxieStudio accounts should be preserved even when main account is deleted
+        // Users can resubscribe and regain access to their existing AxieStudio data
+        console.log(`⚠️ PRESERVING AxieStudio account for ${userToDelete.email} - data will be retained`);
+
+        // Only delete from Supabase auth (this will cascade to other tables)
         const { error: deleteUserError } = await supabase.auth.admin.deleteUser(userToDelete.user_id);
         
         if (deleteUserError) {

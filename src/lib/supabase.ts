@@ -1,10 +1,23 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// Fallback values for development (remove in production)
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://othsnnoncnerjogvwjgc.supabase.co';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im90aHNubm9uY25lcmpvZ3Z3amdjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIxNTY1NDcsImV4cCI6MjA2NzczMjU0N30.bAYQm2q_LH6xCMXrPsObht6pmFbz966MU-g7v1SRzrE';
+
+// Debug logging to see what's actually loaded
+console.log('🔍 Environment Debug:', {
+  supabaseUrl: supabaseUrl ? '✅ Loaded' : '❌ Missing',
+  supabaseAnonKey: supabaseAnonKey ? '✅ Loaded' : '❌ Missing',
+  fromEnv: !!import.meta.env.VITE_SUPABASE_URL,
+  allEnvVars: Object.keys(import.meta.env).filter(key => key.startsWith('VITE_'))
+});
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables');
+  console.error('❌ Missing environment variables:', {
+    VITE_SUPABASE_URL: supabaseUrl,
+    VITE_SUPABASE_ANON_KEY: supabaseAnonKey ? '[REDACTED]' : 'undefined'
+  });
+  throw new Error('Missing Supabase environment variables. Check your .env file and restart the dev server.');
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
@@ -157,6 +170,7 @@ export interface Database {
     Views: {
       stripe_user_subscriptions: {
         Row: {
+          user_id: string;
           customer_id: string;
           subscription_id: string | null;
           subscription_status: 'not_started' | 'incomplete' | 'incomplete_expired' | 'trialing' | 'active' | 'past_due' | 'canceled' | 'unpaid' | 'paused';
@@ -166,6 +180,8 @@ export interface Database {
           cancel_at_period_end: boolean;
           payment_method_brand: string | null;
           payment_method_last4: string | null;
+          subscription_created_at: string;
+          subscription_updated_at: string;
         };
       };
       stripe_user_orders: {

@@ -418,8 +418,9 @@ SELECT
         WHEN ut.trial_status = 'active' AND ut.trial_end_date > now() THEN true
         ELSE false
     END as has_access,
-    CASE 
+    CASE
         WHEN s.status = 'active' THEN 'paid_subscription'
+        WHEN s.status = 'trialing' AND ut.trial_status = 'converted_to_paid' THEN 'paid_subscription'
         WHEN s.status = 'trialing' THEN 'stripe_trial'
         WHEN ut.trial_status = 'active' AND ut.trial_end_date > now() THEN 'free_trial'
         ELSE 'no_access'
@@ -631,6 +632,7 @@ BEGIN
         END as has_access,
         CASE
             WHEN s.status = 'active' THEN 'paid_subscription'
+            WHEN s.status = 'trialing' AND ut.trial_status = 'converted_to_paid' THEN 'paid_subscription'
             WHEN s.status = 'trialing' THEN 'stripe_trial'
             WHEN ut.trial_status = 'active' AND ut.trial_end_date > now() THEN 'free_trial'
             ELSE 'no_access'

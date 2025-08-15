@@ -125,12 +125,37 @@ async function handleEvent(event: Stripe.Event) {
     return;
   }
 
-  console.log(`Processing event: ${event.type}`, { 
+  console.log(`Processing event: ${event.type}`, {
     eventId: event.id,
     hasCustomer: 'customer' in stripeData,
     customer: stripeData.customer,
     customerEmail: stripeData.customer_details?.email
   });
+
+  // 🔧 CRITICAL FIX 1: Webhook deduplication
+  try {
+    const { data: existingEvent } = await supabase
+      .from('webhook_events')
+      .select('id')
+      .eq('stripe_event_id', event.id)
+      .single();
+
+    if (existingEvent) {
+      console.log(`⚠️ Event ${event.id} already processed, skipping`);
+      return;
+    }
+
+    // Record this event as being processed
+    await supabase
+      .from('webhook_events')
+      .insert({
+        stripe_event_id: event.id,
+        event_type: event.type
+      });
+  } catch (error) {
+    console.error('Error checking/recording webhook event:', error);
+    // Continue processing even if deduplication fails
+  }
 
   // Handle subscription updates (cancellations, reactivations, etc.)
   if (event.type === 'customer.subscription.updated') {
@@ -153,6 +178,24 @@ async function handleEvent(event: Stripe.Event) {
     console.log(`🗑️ Subscription deleted: ${subscription.id}`);
 
     await handleSubscriptionDeletion(subscription);
+    return;
+  }
+
+  // 🔧 CRITICAL FIX 2: Handle payment failures
+  if (event.type === 'invoice.payment_failed') {
+    const invoice = stripeData as Stripe.Invoice;
+    console.log(`💳 Payment failed for invoice: ${invoice.id}`);
+
+    await handlePaymentFailure(invoice);
+    return;
+  }
+
+  // 🔧 CRITICAL FIX 3: Handle payment success (recovery from failure)
+  if (event.type === 'invoice.payment_succeeded') {
+    const invoice = stripeData as Stripe.Invoice;
+    console.log(`✅ Payment succeeded for invoice: ${invoice.id}`);
+
+    await handlePaymentSuccess(invoice);
     return;
   }
 
@@ -265,7 +308,7 @@ async function ensureCustomerExists(customerId: string, email?: string) {
     let userId = null;
     if (email) {
       const { data: user } = await supabase.auth.admin.listUsers();
-      const foundUser = user.users.find(u => u.email === email);
+      const foundUser = user.users.find((u: any) => u.email === email);
       
       if (foundUser) {
         userId = foundUser.id;
@@ -399,8 +442,9 @@ async function handleSubscriptionUpdate(subscription: Stripe.Subscription) {
 
     // Handle cancellation
     if (subscription.cancel_at_period_end) {
-      console.log('🗑️ Subscription canceled via portal, updating trial status');
+      console.log('🗑️ Subscription canceled via portal, scheduling deactivation for period end');
 
+      // 🚨 CRITICAL FIX: Keep AxieStudio active until period actually ends
       // Schedule account deletion for 24 hours after period end
       const subscriptionEndDate = new Date(subscription.current_period_end * 1000);
       const deletionDate = new Date(subscriptionEndDate.getTime() + (24 * 60 * 60 * 1000));
@@ -408,7 +452,7 @@ async function handleSubscriptionUpdate(subscription: Stripe.Subscription) {
       const { error: trialError } = await supabase
         .from('user_trials')
         .update({
-          trial_status: 'canceled',
+          trial_status: 'canceled', // Mark as canceled but keep access until period ends
           deletion_scheduled_at: deletionDate.toISOString()
         })
         .eq('user_id', customerData.user_id);
@@ -416,8 +460,13 @@ async function handleSubscriptionUpdate(subscription: Stripe.Subscription) {
       if (trialError) {
         console.error('❌ Error updating trial status:', trialError);
       } else {
-        console.log('✅ Trial status updated to canceled');
+        console.log('✅ Trial status updated to canceled - AxieStudio remains active until period ends');
+        console.log(`📅 Subscription ends: ${subscriptionEndDate.toISOString()}`);
+        console.log(`🗑️ Account deletion scheduled: ${deletionDate.toISOString()}`);
       }
+
+      // 🚨 IMPORTANT: Do NOT deactivate AxieStudio here - it should remain active until period ends
+      // AxieStudio deactivation will happen during the trial-cleanup process after period ends
     }
 
     // Handle reactivation
@@ -441,6 +490,131 @@ async function handleSubscriptionUpdate(subscription: Stripe.Subscription) {
 
   } catch (error) {
     console.error('❌ Error handling subscription update:', error);
+  }
+}
+
+// 🔧 CRITICAL FIX: Payment failure handler
+async function handlePaymentFailure(invoice: Stripe.Invoice) {
+  try {
+    console.log(`💳 Processing payment failure for invoice: ${invoice.id}`);
+
+    if (!invoice.subscription) {
+      console.log('No subscription associated with failed invoice');
+      return;
+    }
+
+    // Get the subscription details
+    const subscription = await stripe.subscriptions.retrieve(invoice.subscription as string);
+
+    // Update subscription status to reflect payment failure
+    const { error: updateError } = await supabase
+      .from('stripe_subscriptions')
+      .update({
+        status: subscription.status, // Usually 'past_due'
+        updated_at: new Date().toISOString()
+      })
+      .eq('subscription_id', subscription.id);
+
+    if (updateError) {
+      console.error('❌ Error updating subscription after payment failure:', updateError);
+      return;
+    }
+
+    // Find the user and update their trial status
+    const { data: customerData } = await supabase
+      .from('stripe_customers')
+      .select('user_id')
+      .eq('customer_id', subscription.customer as string)
+      .single();
+
+    if (customerData) {
+      // Give user 7 days grace period for payment failure
+      const gracePeriodEnd = new Date();
+      gracePeriodEnd.setDate(gracePeriodEnd.getDate() + 7);
+
+      const { error: trialError } = await supabase
+        .from('user_trials')
+        .update({
+          trial_status: 'payment_failed',
+          deletion_scheduled_at: gracePeriodEnd.toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', customerData.user_id);
+
+      if (trialError) {
+        console.error('❌ Error updating trial status for payment failure:', trialError);
+      } else {
+        console.log('✅ User given 7-day grace period for payment failure');
+      }
+    }
+
+  } catch (error) {
+    console.error('❌ Error handling payment failure:', error);
+  }
+}
+
+// 🔧 CRITICAL FIX: Payment success handler (recovery from failure)
+async function handlePaymentSuccess(invoice: Stripe.Invoice) {
+  try {
+    console.log(`✅ Processing payment success for invoice: ${invoice.id}`);
+
+    if (!invoice.subscription) {
+      console.log('No subscription associated with successful invoice');
+      return;
+    }
+
+    // Get the subscription details
+    const subscription = await stripe.subscriptions.retrieve(invoice.subscription as string);
+
+    // Update subscription status
+    const { error: updateError } = await supabase
+      .from('stripe_subscriptions')
+      .update({
+        status: subscription.status, // Usually 'active'
+        updated_at: new Date().toISOString()
+      })
+      .eq('subscription_id', subscription.id);
+
+    if (updateError) {
+      console.error('❌ Error updating subscription after payment success:', updateError);
+      return;
+    }
+
+    // Find the user and restore their access
+    const { data: customerData } = await supabase
+      .from('stripe_customers')
+      .select('user_id')
+      .eq('customer_id', subscription.customer as string)
+      .single();
+
+    if (customerData) {
+      // Restore user access and clear deletion schedule
+      const { error: trialError } = await supabase
+        .from('user_trials')
+        .update({
+          trial_status: 'converted_to_paid',
+          deletion_scheduled_at: null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', customerData.user_id);
+
+      if (trialError) {
+        console.error('❌ Error restoring user access after payment success:', trialError);
+      } else {
+        console.log('✅ User access restored after successful payment');
+      }
+
+      // Run protection functions
+      try {
+        await supabase.rpc('protect_paying_customers');
+        await supabase.rpc('sync_subscription_status');
+      } catch (error) {
+        console.error('Error running protection functions:', error);
+      }
+    }
+
+  } catch (error) {
+    console.error('❌ Error handling payment success:', error);
   }
 }
 

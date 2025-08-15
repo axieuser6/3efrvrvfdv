@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Zap, ExternalLink, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { useEnvironment } from '../hooks/useEnvironment';
 
 interface LaunchStudioOnlyButtonProps {
   className?: string;
@@ -8,10 +9,11 @@ interface LaunchStudioOnlyButtonProps {
 
 export function LaunchStudioOnlyButton({ className = '' }: LaunchStudioOnlyButtonProps) {
   const [isLaunching, setIsLaunching] = useState(false);
+  const { getConfig } = useEnvironment();
 
   const handleLaunchStudio = async () => {
     setIsLaunching(true);
-    console.log('🚀 Starting AxieStudio auto-login...');
+    console.log('🚀 Starting AxieStudio launch via our API...');
 
     try {
       // Get current user session
@@ -20,38 +22,63 @@ export function LaunchStudioOnlyButton({ className = '' }: LaunchStudioOnlyButto
       if (sessionError || !session) {
         console.error('❌ No active session found');
         // Fallback to manual login
-        const loginUrl = `${import.meta.env.VITE_AXIESTUDIO_APP_URL}/login`;
+        const axiestudioUrl = getConfig('VITE_AXIESTUDIO_APP_URL', 'https://flow.axiestudio.se');
+        const loginUrl = `${axiestudioUrl}/login`;
+        console.log('🔗 Redirecting to manual login:', loginUrl);
         window.open(loginUrl, '_blank');
         return;
       }
 
-      // Call our auto-login Supabase function
-      const { data, error } = await supabase.functions.invoke('axiestudio-auto-login', {
+      // Get user info
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        console.error('❌ Could not get user info');
+        const axiestudioUrl = getConfig('VITE_AXIESTUDIO_APP_URL', 'https://flow.axiestudio.se');
+        const loginUrl = `${axiestudioUrl}/login`;
+        window.open(loginUrl, '_blank');
+        return;
+      }
+
+      // Call our simple redirect function
+      const { data, error } = await supabase.functions.invoke('axiestudio-redirect', {
+        body: {
+          user_email: user.email,
+          user_id: user.id
+        },
         headers: {
           Authorization: `Bearer ${session.access_token}`,
         },
       });
 
       if (error) {
-        console.error('❌ Auto-login failed:', error);
+        console.error('❌ Launch API failed:', error);
         // Fallback to manual login
-        const loginUrl = `${import.meta.env.VITE_AXIESTUDIO_APP_URL}/login`;
+        const axiestudioUrl = getConfig('VITE_AXIESTUDIO_APP_URL', 'https://flow.axiestudio.se');
+        const loginUrl = `${axiestudioUrl}/login`;
+        console.log('🔗 Fallback to manual login:', loginUrl);
         window.open(loginUrl, '_blank');
         return;
       }
 
       if (data?.success && data?.redirect_url) {
-        console.log('✅ Auto-login successful, redirecting to:', data.redirect_url);
+        console.log('✅ Redirecting to AxieStudio login:', data.redirect_url);
         window.open(data.redirect_url, '_blank');
+      } else if (data?.fallback_url) {
+        console.log('🔗 Using fallback URL:', data.fallback_url);
+        window.open(data.fallback_url, '_blank');
       } else {
         console.warn('⚠️ Unexpected response, falling back to manual login');
-        const loginUrl = `${import.meta.env.VITE_AXIESTUDIO_APP_URL}/login`;
+        const axiestudioUrl = getConfig('VITE_AXIESTUDIO_APP_URL', 'https://flow.axiestudio.se');
+        const loginUrl = `${axiestudioUrl}/login`;
+        console.log('🔗 Fallback to manual login:', loginUrl);
         window.open(loginUrl, '_blank');
       }
     } catch (error) {
       console.error('❌ Launch failed:', error);
       // Fallback to manual login
-      const loginUrl = `${import.meta.env.VITE_AXIESTUDIO_APP_URL}/login`;
+      const axiestudioUrl = getConfig('VITE_AXIESTUDIO_APP_URL', 'https://flow.axiestudio.se');
+      const loginUrl = `${axiestudioUrl}/login`;
+      console.log('🔗 Error fallback to manual login:', loginUrl);
       window.open(loginUrl, '_blank');
     } finally {
       setIsLaunching(false);

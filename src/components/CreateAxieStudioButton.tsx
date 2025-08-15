@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { UserPlus, Loader2, Eye, EyeOff, Crown } from 'lucide-react';
 import { useAxieStudioAccount } from '../hooks/useAxieStudioAccount';
 import { useUserAccess } from '../hooks/useUserAccess';
+import { useEnvironment } from '../hooks/useEnvironment';
 import { Link } from 'react-router-dom';
 
 interface CreateAxieStudioButtonProps {
@@ -13,6 +14,7 @@ interface CreateAxieStudioButtonProps {
 export function CreateAxieStudioButton({ className = '', onAccountCreated }: CreateAxieStudioButtonProps) {
   const { showCreateButton, markCreateClicked } = useAxieStudioAccount();
   const { hasAccess, accessStatus } = useUserAccess();
+  const { getConfig } = useEnvironment();
   const [isCreating, setIsCreating] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [password, setPassword] = useState('');
@@ -25,16 +27,18 @@ export function CreateAxieStudioButton({ className = '', onAccountCreated }: Cre
   }
 
   // 🚨 BULLETPROOF ACCESS CONTROL: Enhanced security checks
-  const isExpiredTrialUser = accessStatus?.trial_status === 'expired' || 
+  const isExpiredTrialUser = accessStatus?.trial_status === 'expired' ||
                              accessStatus?.trial_status === 'scheduled_for_deletion';
-  const hasActiveSubscription = accessStatus?.subscription_status === 'active' && 
-                               !accessStatus?.is_cancelled_subscription;
+
+  // 🚨 CRITICAL FIX: Cancelled subscriptions should have access until period ends
+  const hasActiveSubscription = accessStatus?.subscription_status === 'active';
   const hasTrialingSubscription = accessStatus?.subscription_status === 'trialing';
-  const hasActiveTrial = accessStatus?.trial_status === 'active' && 
+  const hasActiveTrial = accessStatus?.trial_status === 'active' &&
                         accessStatus?.days_remaining > 0;
-  
+
   // PRODUCTION SECURITY: Multi-layer access verification
-  const canCreateAxieStudioAccount = hasAccess && 
+  // Note: Cancelled subscriptions (trial_status = 'canceled') still have access until period ends
+  const canCreateAxieStudioAccount = hasAccess &&
                                     (hasActiveSubscription || hasTrialingSubscription || hasActiveTrial) &&
                                     !isExpiredTrialUser;
   
@@ -103,7 +107,11 @@ export function CreateAxieStudioButton({ className = '', onAccountCreated }: Cre
 
       console.log('🔧 Creating new AxieStudio account...');
 
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/axie-studio-account`, {
+      // 🚀 Use centralized environment configuration
+      const supabaseUrl = getConfig('VITE_SUPABASE_URL', 'https://othsnnoncnerjogvwjgc.supabase.co');
+      console.log('🔍 Using Supabase URL from centralized config:', supabaseUrl);
+
+      const response = await fetch(`${supabaseUrl}/functions/v1/axie-studio-account`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

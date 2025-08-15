@@ -14,6 +14,8 @@ import { AccountDeletionCountdown } from '../components/AccountDeletionCountdown
 import { ReturningUserStatus } from '../components/ReturningUserStatus';
 import { CreateAxieStudioButton } from '../components/CreateAxieStudioButton';
 import { LaunchStudioOnlyButton } from '../components/LaunchStudioOnlyButton';
+import { TeamCreationPrompt } from '../components/TeamCreationPrompt';
+import { TeamDashboardSection } from '../components/TeamDashboardSection';
 
 import { Link } from 'react-router-dom';
 import { Settings, LogOut, ShoppingBag, Zap, Shield, AlertTriangle } from 'lucide-react';
@@ -128,6 +130,15 @@ export function DashboardPage() {
                 </Link>
               )}
 
+              {/* TEAM BUTTON TEMPORARILY HIDDEN */}
+              {/* <Link
+                to="/team"
+                className="flex items-center gap-2 bg-blue-600 text-white px-3 py-2 rounded-none font-bold hover:bg-blue-700 transition-colors uppercase tracking-wide text-xs"
+              >
+                <Users className="w-4 h-4" />
+                TEAM
+              </Link> */}
+
               <Link
                 to="/account"
                 className="flex items-center gap-2 bg-gray-600 text-white px-3 py-2 rounded-none font-bold hover:bg-gray-700 transition-colors uppercase tracking-wide text-xs"
@@ -214,19 +225,40 @@ export function DashboardPage() {
                     </div>
                     <div className="text-right">
                       <p className={`text-sm font-medium ${isProtected ? 'text-green-700' : 'text-orange-700'}`}>
-                        {isPaidUser ? 'PREMIUM' : isTrialing ? (subscription?.cancel_at_period_end ? 'CANCELLED' : 'TRIAL') : isProtected ? 'PROTECTED' : 'FREE TRIAL'}
+                        {isAdmin ? 'SUPER ADMIN' :
+                         isPaidUser ? 'PREMIUM' :
+                         isTrialing ? (subscription?.cancel_at_period_end ? 'CANCELLED' : 'TRIAL') :
+                         isProtected ? 'PROTECTED' : 'FREE TRIAL'}
                       </p>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Trial/Subscription Status */}
-              <div className="space-y-4">
-                <TrialStatus />
-                <SubscriptionStatus />
-              </div>
+              {/* Admin Status, Team Member Status, or Trial/Subscription Status */}
+              {isAdmin ? (
+                <div className="bg-purple-50 border-2 border-purple-600 rounded-none p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-purple-600 text-white flex items-center justify-center rounded-none">
+                      <span className="text-sm font-bold">👑</span>
+                    </div>
+                    <div>
+                      <p className="text-purple-800 font-bold uppercase tracking-wide">SUPER ADMIN ACCOUNT</p>
+                      <p className="text-purple-700 text-sm">Infinite access - No deletion countdown</p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <TrialStatus />
+                  <SubscriptionStatus />
+                </div>
+              )}
             </div>
+
+            {/* TEAM FUNCTIONALITY TEMPORARILY HIDDEN */}
+            {/* <TeamCreationPrompt /> */}
+            {/* <TeamDashboardSection /> */}
 
             {/* AXIE STUDIO ACCESS */}
             <div className="bg-white border-2 border-black rounded-none shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-8">

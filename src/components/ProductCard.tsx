@@ -13,17 +13,23 @@ export function ProductCard({ product, isCurrentPlan = false }: ProductCardProps
   const [loading, setLoading] = useState(false);
   const { refetch: refetchAccess } = useUserAccess();
 
-  const isTrialProduct = product.id === 'trial_product';
-  const cardColor = isTrialProduct ? 'border-green-600' : 'border-black';
-  const shadowColor = isTrialProduct ? 'rgba(34,197,94,1)' : 'rgba(0,0,0,1)';
-  const iconBg = isTrialProduct ? 'bg-green-600' : 'bg-black';
-  const buttonBg = isTrialProduct ? 'bg-green-600 hover:bg-green-700' : 'bg-black hover:bg-gray-800';
+  const isStandardProduct = product.id === 'standard_product' || product.name === 'Standard';
+  const isLimitedTimeProduct = product.name === 'Limited Time';
+
+  const cardColor = isStandardProduct ? 'border-green-600' :
+                   isLimitedTimeProduct ? 'border-purple-600' : 'border-black';
+  const shadowColor = isStandardProduct ? 'rgba(34,197,94,1)' :
+                     isLimitedTimeProduct ? 'rgba(147,51,234,1)' : 'rgba(0,0,0,1)';
+  const iconBg = isStandardProduct ? 'bg-green-600' :
+                isLimitedTimeProduct ? 'bg-purple-600' : 'bg-black';
+  const buttonBg = isStandardProduct ? 'bg-green-600 hover:bg-green-700' :
+                  isLimitedTimeProduct ? 'bg-purple-600 hover:bg-purple-700' : 'bg-black hover:bg-gray-800';
 
   const handlePurchase = async () => {
-    // Handle trial product differently
-    if (product.id === 'trial_product') {
-      alert('You already have access to the 7-day free trial! Sign up to get started.');
-      return;
+    // Handle standard product differently
+    if (product.id === 'standard_product') {
+      const confirmPause = confirm('Switching to Standard will pause your AxieStudio access but keep your account and data safe. You can reactivate anytime. Continue?');
+      if (!confirmPause) return;
     }
 
     try {
@@ -73,19 +79,19 @@ export function ProductCard({ product, isCurrentPlan = false }: ProductCardProps
   return (
     <div className={`relative bg-white border-4 ${cardColor} rounded-none shadow-[12px_12px_0px_0px_${shadowColor}] transition-all duration-300 hover:shadow-[16px_16px_0px_0px_${shadowColor}] hover:translate-x-[-4px] hover:translate-y-[-4px] ${
       isCurrentPlan
-        ? isTrialProduct ? 'bg-green-50' : 'bg-green-50'
+        ? isStandardProduct ? 'bg-green-50' : 'bg-green-50'
         : 'hover:bg-gray-50'
     }`}>
-      {isTrialProduct && (
+      {isStandardProduct && (
         <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
           <div className="bg-green-600 text-white px-6 py-2 rounded-none text-sm font-bold uppercase tracking-wide flex items-center gap-2 border-2 border-green-600">
             <Gift className="w-4 h-4" />
-            FREE TRIAL
+            FREE TIER
           </div>
         </div>
       )}
 
-      {isCurrentPlan && !isTrialProduct && (
+      {isCurrentPlan && !isStandardProduct && (
         <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
           <div className="bg-black text-white px-6 py-2 rounded-none text-sm font-bold uppercase tracking-wide flex items-center gap-2 border-2 border-black">
             <Check className="w-4 h-4" />
@@ -97,17 +103,19 @@ export function ProductCard({ product, isCurrentPlan = false }: ProductCardProps
       <div className="p-8">
         <div className="text-center mb-8">
           <div className={`inline-flex items-center justify-center w-20 h-20 ${iconBg} text-white rounded-none mb-6`}>
-            {isTrialProduct ? <Gift className="w-10 h-10" /> : <Crown className="w-10 h-10" />}
+            {isStandardProduct ? <Gift className="w-10 h-10" /> :
+             isLimitedTimeProduct ? <Zap className="w-10 h-10" /> :
+             <Crown className="w-10 h-10" />}
           </div>
           <h3 className="text-3xl font-bold text-black mb-3 uppercase tracking-wide">{product.name}</h3>
           <p className="text-gray-600 mb-6 text-lg">{product.description}</p>
 
           <div className="mb-8">
-            {isTrialProduct ? (
+            {isStandardProduct ? (
               <>
                 <span className="text-5xl font-bold text-green-600">FREE</span>
                 <div className="mt-3 inline-block bg-green-100 text-green-800 px-4 py-2 border-2 border-green-800 rounded-none">
-                  <span className="text-sm font-bold uppercase tracking-wide">7 DAYS FULL ACCESS</span>
+                  <span className="text-sm font-bold uppercase tracking-wide">PAUSE SUBSCRIPTION</span>
                 </div>
               </>
             ) : (
@@ -117,7 +125,7 @@ export function ProductCard({ product, isCurrentPlan = false }: ProductCardProps
                   <span className="text-gray-600 ml-2 text-xl">/month</span>
                 )}
                 <div className="mt-3 inline-block bg-green-100 text-green-800 px-4 py-2 border-2 border-green-800 rounded-none">
-                  <span className="text-sm font-bold uppercase tracking-wide">7-DAY FREE TRIAL</span>
+                  <span className="text-sm font-bold uppercase tracking-wide">FULL ACCESS</span>
                 </div>
               </>
             )}
@@ -125,31 +133,31 @@ export function ProductCard({ product, isCurrentPlan = false }: ProductCardProps
         </div>
 
         <div className="space-y-4 mb-8">
-          {isTrialProduct ? (
+          {isStandardProduct ? (
             <>
               <div className="flex items-center gap-4">
                 <div className="w-6 h-6 bg-green-600 flex items-center justify-center rounded-none">
                   <Check className="w-4 h-4 text-white" />
                 </div>
-                <span className="text-black font-medium">Full access to AI workflows</span>
+                <span className="text-black font-medium">Keep your account & data safe</span>
               </div>
               <div className="flex items-center gap-4">
                 <div className="w-6 h-6 bg-green-600 flex items-center justify-center rounded-none">
                   <Check className="w-4 h-4 text-white" />
                 </div>
-                <span className="text-black font-medium">No credit card required</span>
+                <span className="text-black font-medium">No monthly charges</span>
               </div>
               <div className="flex items-center gap-4">
                 <div className="w-6 h-6 bg-green-600 flex items-center justify-center rounded-none">
                   <Check className="w-4 h-4 text-white" />
                 </div>
-                <span className="text-black font-medium">Cancel anytime</span>
+                <span className="text-black font-medium">Reactivate anytime</span>
               </div>
               <div className="flex items-center gap-4">
                 <div className="w-6 h-6 bg-green-600 flex items-center justify-center rounded-none">
                   <Check className="w-4 h-4 text-white" />
                 </div>
-                <span className="text-black font-medium">Instant activation</span>
+                <span className="text-black font-medium">AxieStudio access paused</span>
               </div>
             </>
           ) : (
@@ -184,15 +192,23 @@ export function ProductCard({ product, isCurrentPlan = false }: ProductCardProps
 
         <button
           onClick={handlePurchase}
-          disabled={loading || (isCurrentPlan && !isTrialProduct)}
+          disabled={loading || (isCurrentPlan && !isStandardProduct)}
           className={`w-full py-4 px-6 rounded-none font-bold uppercase tracking-wide transition-all duration-200 border-2 ${
-            isTrialProduct
+            isStandardProduct
               ? `border-green-600 ${
                   isCurrentPlan
                     ? 'bg-green-100 text-green-800 cursor-not-allowed'
                     : loading
                     ? 'bg-gray-400 text-white cursor-not-allowed'
                     : 'bg-green-600 text-white hover:bg-green-700 hover:shadow-[4px_4px_0px_0px_rgba(34,197,94,0.3)] hover:translate-x-[-2px] hover:translate-y-[-2px]'
+                }`
+              : isLimitedTimeProduct
+              ? `border-purple-600 ${
+                  isCurrentPlan
+                    ? 'bg-green-100 text-green-800 cursor-not-allowed'
+                    : loading
+                    ? 'bg-gray-400 text-white cursor-not-allowed'
+                    : 'bg-purple-600 text-white hover:bg-purple-700 hover:shadow-[4px_4px_0px_0px_rgba(147,51,234,0.3)] hover:translate-x-[-2px] hover:translate-y-[-2px]'
                 }`
               : `border-black ${
                   isCurrentPlan
@@ -209,9 +225,9 @@ export function ProductCard({ product, isCurrentPlan = false }: ProductCardProps
               PROCESSING...
             </div>
           ) : isCurrentPlan ? (
-            isTrialProduct ? 'TRIAL ACTIVE' : 'ACTIVE PLAN'
+            isStandardProduct ? 'ACCOUNT PAUSED' : 'ACTIVE PLAN'
           ) : (
-            isTrialProduct ? 'START FREE TRIAL' : `GET ${product.name.toUpperCase()}`
+            isStandardProduct ? 'PAUSE SUBSCRIPTION' : `GET ${product.name.toUpperCase()}`
           )}
         </button>
       </div>

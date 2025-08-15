@@ -461,11 +461,39 @@ export function UserManagementPage() {
                     </h3>
                   </div>
                   
-                  <p className="text-red-700 mb-4">
-                    <strong>IMMEDIATE DELETION:</strong> This will instantly remove your account and all access,
-                    regardless of any active subscription or trial time remaining. All data will be permanently deleted
-                    and your AxieStudio account will be removed. This action cannot be undone.
-                  </p>
+                  <div className="text-red-700 mb-6 space-y-3">
+                    <p className="font-bold text-lg">
+                      🚨 IMMEDIATE PERMANENT DELETION WARNING
+                    </p>
+
+                    <div className="bg-red-100 border-2 border-red-300 p-4">
+                      <p className="font-bold mb-2">⚡ INSTANT EFFECTS:</p>
+                      <ul className="text-sm space-y-1">
+                        <li>• ❌ Account deleted immediately (no grace period)</li>
+                        <li>• ❌ All subscription access terminated instantly</li>
+                        <li>• ❌ Any remaining trial/subscription time forfeited</li>
+                      </ul>
+                    </div>
+
+                    <div className="bg-red-200 border-2 border-red-400 p-4">
+                      <p className="font-bold mb-2">🗑️ DATA CONSEQUENCES:</p>
+                      <ul className="text-sm space-y-1">
+                        <li>• ❌ All account data permanently deleted</li>
+                        <li>• ⚠️ AxieStudio account DEACTIVATED (data preserved)</li>
+                        <li>• 📧 Contact support to reactivate AxieStudio if you resubscribe</li>
+                        <li>• 🚫 This action cannot be undone</li>
+                      </ul>
+                    </div>
+
+                    <div className="bg-yellow-100 border-2 border-yellow-400 p-4">
+                      <p className="font-bold mb-2">💡 ALTERNATIVE OPTIONS:</p>
+                      <ul className="text-sm space-y-1">
+                        <li>• 🔄 Cancel subscription instead (keeps account until period ends)</li>
+                        <li>• ⏸️ Downgrade to free trial (if available)</li>
+                        <li>• 📞 Contact support for account suspension options</li>
+                      </ul>
+                    </div>
+                  </div>
                   
                   {!showDeleteConfirm ? (
                     <div className="space-y-3">
