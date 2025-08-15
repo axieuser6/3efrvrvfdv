@@ -48,7 +48,7 @@ export function useUserAccess() {
         console.log('🔄 Fetching user access status for user:', user.id);
 
         // BULLETPROOF: Use enhanced access control function
-        const { data: accessData, error: accessError } = await supabase.rpc('check_user_access_bulletproof', {
+        const { data: accessData, error: accessError } = await supabase.rpc('get_user_access_level', {
           p_user_id: user.id
         });
 
