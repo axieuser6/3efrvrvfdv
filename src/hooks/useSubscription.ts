@@ -36,7 +36,7 @@ export function useSubscription() {
 
         console.log('🔄 Fetching subscription for user:', user.id);
 
-        // Try the view first
+        // BULLETPROOF: Use fixed view with user_id column
         const { data, error: fetchError } = await supabase
           .from('stripe_user_subscriptions')
           .select('*')
@@ -44,7 +44,7 @@ export function useSubscription() {
           .maybeSingle();
 
         if (data && !fetchError) {
-          console.log('✅ Successfully fetched from stripe_user_subscriptions view:', data);
+          console.log('✅ Successfully fetched from fixed stripe_user_subscriptions view:', data);
 
           // Add product name if we have a price_id
           const product = data.price_id ? getProductByPriceId(data.price_id) : null;
@@ -53,7 +53,7 @@ export function useSubscription() {
             product_name: product?.name,
           });
 
-          // Sync subscription status to ensure trial protection
+          // BULLETPROOF: Sync subscription status for protection
           if (data.subscription_status === 'active' || data.subscription_status === 'trialing') {
             try {
               await supabase.rpc('sync_subscription_status');
@@ -65,7 +65,7 @@ export function useSubscription() {
           return;
         }
 
-        console.log('⚠️ stripe_user_subscriptions view failed, trying base tables:', fetchError);
+        console.log('⚠️ Fixed view failed, trying base tables fallback:', fetchError);
 
         // Fallback: Query base tables directly with manual join
         const { data: customerData, error: customerError } = await supabase
@@ -80,8 +80,7 @@ export function useSubscription() {
         }
 
         if (customerData) {
-          // Now query subscription separately to avoid relationship issues
-          // Order by updated_at desc to get the most recent subscription
+          // Query most recent active subscription
           const { data: subscriptionData, error: subscriptionError } = await supabase
             .from('stripe_subscriptions')
             .select('*')
@@ -114,13 +113,9 @@ export function useSubscription() {
             product_name: product?.name,
           });
 
-          console.log('✅ Successfully fetched from base tables:', enrichedData);
-          console.log('🔍 Full subscription object:', subscriptionData);
-          console.log('🔍 Cancel at period end:', subscriptionData?.cancel_at_period_end);
-          console.log('🔍 Current period end:', subscriptionData?.current_period_end);
-          console.log('🔍 Is subscription cancelled?:', subscriptionData?.cancel_at_period_end === true);
+          console.log('✅ Fallback: Successfully fetched from base tables:', enrichedData);
 
-          // Sync subscription status to ensure trial protection
+          // BULLETPROOF: Ensure protection for paying customers
           if (enrichedData.subscription_status === 'active' || enrichedData.subscription_status === 'trialing') {
             try {
               await supabase.rpc('sync_subscription_status');
@@ -131,8 +126,6 @@ export function useSubscription() {
           }
         } else {
           console.log('ℹ️ No customer found for user');
-          setSubscription(null);
-          console.log('ℹ️ No subscription found for user');
           setSubscription(null);
         }
       } catch (err) {
@@ -146,8 +139,8 @@ export function useSubscription() {
 
     fetchSubscription();
 
-    // Poll for subscription changes every 10 seconds (faster detection)
-    const interval = setInterval(fetchSubscription, 10000);
+    // BULLETPROOF: More frequent polling for subscription changes
+    const interval = setInterval(fetchSubscription, 5000);
 
     return () => clearInterval(interval);
   }, [user]);
@@ -155,7 +148,7 @@ export function useSubscription() {
   const hasActiveSubscription = subscription?.subscription_status === 'active';
   const isTrialing = subscription?.subscription_status === 'trialing';
   const isPastDue = subscription?.subscription_status === 'past_due';
-  // A subscription is considered cancelled if it has cancel_at_period_end=true OR status is 'canceled'
+  // BULLETPROOF: Enhanced cancellation detection
   const isCanceled = subscription?.cancel_at_period_end === true || subscription?.subscription_status === 'canceled';
 
   return {
