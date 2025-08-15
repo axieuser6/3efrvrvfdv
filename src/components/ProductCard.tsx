@@ -30,6 +30,38 @@ export function ProductCard({ product, isCurrentPlan = false }: ProductCardProps
     if (product.id === 'standard_product') {
       const confirmPause = confirm('Switching to Standard will pause your AxieStudio access but keep your account and data safe. You can reactivate anytime. Continue?');
       if (!confirmPause) return;
+
+      try {
+        setLoading(true);
+
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          throw new Error('Please sign in to continue');
+        }
+
+        const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/cancel-subscription`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to cancel subscription');
+        }
+
+        // Refresh access status after cancellation
+        refetchAccess();
+        alert('Subscription paused successfully. Your account and data are safe.');
+      } catch (error: any) {
+        console.error('Cancellation error:', error);
+        alert(error.message || 'Failed to pause subscription');
+      } finally {
+        setLoading(false);
+      }
+      return;
     }
 
     try {
