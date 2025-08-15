@@ -103,22 +103,6 @@ export function useUserAccess() {
 
         const userAccess = accessData[0];
         console.log('✅ User access data:', userAccess);
-          p_user_id: user.id
-        });
-
-        if (accessError) {
-          console.error('❌ Access check failed:', accessError);
-          throw accessError;
-        }
-
-        if (!accessData || accessData.length === 0) {
-          console.log('⚠️ No access data found for user');
-          setAccessStatus(null);
-          return;
-        }
-
-        const userAccess = accessData[0];
-        console.log('✅ Bulletproof user access data:', userAccess);
 
         // VERIFICATION: Get subscription data for cross-validation
         const { data: subscriptionData } = await supabase
@@ -152,8 +136,6 @@ export function useUserAccess() {
           has_stripe_subscription: !!subscriptionData?.subscription_id,
           subscription_verification_time: fetchTime,
           is_expired_trial_user: userAccess.is_expired_trial_user || false,
-          is_returning_user: userAccess.is_returning_user || false,
-          requires_subscription: userAccess.requires_subscription || false,
           can_create_axiestudio_account: userAccess.can_create_axiestudio_account || false
         };
 
@@ -248,6 +230,6 @@ export function useUserAccess() {
       if (user) {
         setLoading(true);
       }
-    },
+    }
   };
 }
