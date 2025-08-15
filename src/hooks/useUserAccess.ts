@@ -120,6 +120,7 @@ export function useUserAccess() {
       } catch (error) {
         console.warn('⚠️ Team membership check failed, continuing with individual access check');
       }
+      }
 
       // BULLETPROOF: Use enhanced access control function
       const { data: accessData, error: accessError } = await supabase.rpc('get_user_access_level', {
@@ -238,19 +239,9 @@ export function useUserAccess() {
   const isPaidUser = accessStatus?.access_type === 'paid_subscription';
   const isTrialing = accessStatus?.access_type === 'stripe_trial';
   const isFreeTrialing = accessStatus?.access_type === 'free_trial';
-  
-  // SECURITY: Enhanced protection logic
-  const isProtected = isPaidUser || 
-                     isTrialing || 
-                     (accessStatus?.subscription_status === 'active' && !accessStatus?.is_cancelled_subscription) ||
-                     accessStatus?.trial_status === 'converted_to_paid';
-  
-  // SECURITY: Additional security flags
-  const isExpiredTrialUser = accessStatus?.trial_status === 'expired' || 
-                            accessStatus?.trial_status === 'scheduled_for_deletion';
-  const canCreateAxieStudioAccount = hasAccess && 
-                                    !isExpiredTrialUser && 
-                                    (isPaidUser || isTrialing || isFreeTrialing);
+  const isProtected = isPaidUser || isTrialing;
+  const isExpiredTrialUser = accessStatus?.is_expired_trial_user || false;
+  const canCreateAxieStudioAccount = accessStatus?.can_create_axiestudio_account || false;
 
   return {
     accessStatus,
