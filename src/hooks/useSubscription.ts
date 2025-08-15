@@ -61,16 +61,6 @@ export function useSubscription() {
             ...data,
             product_name: product?.name,
           });
-
-          // BULLETPROOF: Sync subscription status for protection
-          if (data.subscription_status === 'active' || data.subscription_status === 'trialing') {
-            try {
-              await supabase.rpc('sync_subscription_status');
-              await supabase.rpc('protect_paying_customers');
-            } catch (error) {
-              console.error('Failed to sync subscription status:', error);
-            }
-          }
           return;
         }
 
@@ -85,7 +75,9 @@ export function useSubscription() {
           .maybeSingle();
 
         if (customerError) {
-          throw customerError;
+          console.warn('Customer query failed:', customerError);
+          setSubscription(null);
+          return;
         }
 
         if (customerData) {
@@ -101,6 +93,8 @@ export function useSubscription() {
 
           if (subscriptionError) {
             console.warn('Subscription query failed:', subscriptionError);
+            setSubscription(null);
+            return;
           }
 
           const enrichedData: UserSubscription = {
@@ -123,41 +117,25 @@ export function useSubscription() {
           });
 
           console.log('✅ Fallback: Successfully fetched from base tables:', enrichedData);
-
-          // BULLETPROOF: Ensure protection for paying customers
-          if (enrichedData.subscription_status === 'active' || enrichedData.subscription_status === 'trialing') {
-            try {
-              await supabase.rpc('sync_subscription_status');
-              await supabase.rpc('protect_paying_customers');
-            } catch (error) {
-              console.error('Failed to sync subscription status:', error);
-            }
-          }
         } else {
           console.log('ℹ️ No customer found for user');
           setSubscription(null);
         }
       } catch (err) {
         console.error('Error fetching subscription:', err);
-        setError(err instanceof Error ? err.message : 'Failed to fetch subscription');
         setSubscription(null);
+        setError(null); // Don't show errors to user
       } finally {
         setLoading(false);
       }
     };
 
     fetchSubscription();
-
-    // BULLETPROOF: More frequent polling for subscription changes
-    const interval = setInterval(fetchSubscription, 5000);
-
-    return () => clearInterval(interval);
   }, [user]);
 
   const hasActiveSubscription = subscription?.subscription_status === 'active';
   const isTrialing = subscription?.subscription_status === 'trialing';
   const isPastDue = subscription?.subscription_status === 'past_due';
-  // BULLETPROOF: Enhanced cancellation detection
   const isCanceled = subscription?.cancel_at_period_end === true || subscription?.subscription_status === 'canceled';
 
   return {
@@ -170,7 +148,6 @@ export function useSubscription() {
     isCanceled,
     refetch: () => {
       if (user) {
-        // Trigger a re-fetch by updating the effect dependency
         setLoading(true);
       }
     },
