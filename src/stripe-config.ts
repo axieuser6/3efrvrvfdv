@@ -9,11 +9,20 @@ export interface StripeProduct {
 
 // Base products that don't change
 export const baseStripeProducts: StripeProduct[] = [
+  {
+    id: 'standard_product',
+    priceId: 'standard_price',
+    name: 'Standard',
+    description: 'Pause your subscription while keeping your account and data safe',
+    mode: 'subscription',
+    price: 0.00,
+  },
 ];
 
 // Function to create dynamic products with real IDs
 export function createStripeProducts(productConfig?: any): StripeProduct[] {
   return [
+    ...baseStripeProducts,
     {
       id: productConfig?.pro?.product_id || import.meta.env.VITE_STRIPE_PRO_PRODUCT_ID || 'YOUR_STRIPE_PRODUCT_ID',
       priceId: productConfig?.pro?.price_id || import.meta.env.VITE_STRIPE_PRO_PRICE_ID || 'YOUR_STRIPE_PRICE_ID',

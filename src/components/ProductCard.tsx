@@ -13,14 +13,61 @@ export function ProductCard({ product, isCurrentPlan = false }: ProductCardProps
   const [loading, setLoading] = useState(false);
   const { refetch: refetchAccess } = useUserAccess();
 
+  const isStandardProduct = product.id === 'standard_product' || product.name === 'Standard';
   const isLimitedTimeProduct = product.name === 'Limited Time';
 
-  const cardColor = isLimitedTimeProduct ? 'border-purple-600' : 'border-black';
-  const shadowColor = isLimitedTimeProduct ? 'rgba(147,51,234,1)' : 'rgba(0,0,0,1)';
-  const iconBg = isLimitedTimeProduct ? 'bg-purple-600' : 'bg-black';
-  const buttonBg = isLimitedTimeProduct ? 'bg-purple-600 hover:bg-purple-700' : 'bg-black hover:bg-gray-800';
+  const cardColor = isStandardProduct ? 'border-green-600' :
+                   isLimitedTimeProduct ? 'border-purple-600' : 'border-black';
+  const shadowColor = isStandardProduct ? 'rgba(34,197,94,1)' :
+                     isLimitedTimeProduct ? 'rgba(147,51,234,1)' : 'rgba(0,0,0,1)';
+  const iconBg = isStandardProduct ? 'bg-green-600' :
+                isLimitedTimeProduct ? 'bg-purple-600' : 'bg-black';
+  const buttonBg = isStandardProduct ? 'bg-green-600 hover:bg-green-700' :
+                  isLimitedTimeProduct ? 'bg-purple-600 hover:bg-purple-700' : 'bg-black hover:bg-gray-800';
 
   const handlePurchase = async () => {
+    // Handle standard product differently
+    if (product.id === 'standard_product') {
+      const confirmPause = confirm('Switching to Standard will pause your AxieStudio access but keep your account and data safe. You can reactivate anytime. Continue?');
+      if (!confirmPause) return;
+
+      try {
+        setLoading(true);
+
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          throw new Error('Please sign in to continue');
+        }
+
+        const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/switch-to-standard`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            user_action: 'switch_to_standard'
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to cancel subscription');
+        }
+
+        const result = await response.json();
+        
+        // Refresh access status after cancellation
+        refetchAccess();
+        alert(result.message || 'Subscription paused successfully. Your account and data are safe.');
+      } catch (error: any) {
+        console.error('Cancellation error:', error);
+        alert(error.message || 'Failed to pause subscription');
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
 
     try {
       setLoading(true);
@@ -69,11 +116,19 @@ export function ProductCard({ product, isCurrentPlan = false }: ProductCardProps
   return (
     <div className={`relative bg-white border-4 ${cardColor} rounded-none shadow-[12px_12px_0px_0px_${shadowColor}] transition-all duration-300 hover:shadow-[16px_16px_0px_0px_${shadowColor}] hover:translate-x-[-4px] hover:translate-y-[-4px] ${
       isCurrentPlan
-        ? 'bg-green-50'
+        ? isStandardProduct ? 'bg-green-50' : 'bg-green-50'
         : 'hover:bg-gray-50'
     }`}>
+      {isStandardProduct && (
+        <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+          <div className="bg-green-600 text-white px-6 py-2 rounded-none text-sm font-bold uppercase tracking-wide flex items-center gap-2 border-2 border-green-600">
+            <Gift className="w-4 h-4" />
+            FREE TIER
+          </div>
+        </div>
+      )}
 
-      {isCurrentPlan && (
+      {isCurrentPlan && !isStandardProduct && (
         <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
           <div className="bg-black text-white px-6 py-2 rounded-none text-sm font-bold uppercase tracking-wide flex items-center gap-2 border-2 border-black">
             <Check className="w-4 h-4" />
@@ -85,59 +140,106 @@ export function ProductCard({ product, isCurrentPlan = false }: ProductCardProps
       <div className="p-8">
         <div className="text-center mb-8">
           <div className={`inline-flex items-center justify-center w-20 h-20 ${iconBg} text-white rounded-none mb-6`}>
-            {isLimitedTimeProduct ? <Zap className="w-10 h-10" /> :
+            {isStandardProduct ? <Gift className="w-10 h-10" /> :
+             isLimitedTimeProduct ? <Zap className="w-10 h-10" /> :
              <Crown className="w-10 h-10" />}
           </div>
           <h3 className="text-3xl font-bold text-black mb-3 uppercase tracking-wide">{product.name}</h3>
           <p className="text-gray-600 mb-6 text-lg">{product.description}</p>
 
           <div className="mb-8">
-            <>
-              <span className="text-5xl font-bold text-black">${product.price}</span>
-              {product.mode === 'subscription' && (
-                <span className="text-gray-600 ml-2 text-xl">/month</span>
-              )}
-              <div className="mt-3 inline-block bg-green-100 text-green-800 px-4 py-2 border-2 border-green-800 rounded-none">
-                <span className="text-sm font-bold uppercase tracking-wide">FULL ACCESS</span>
-              </div>
-            </>
+            {isStandardProduct ? (
+              <>
+                <span className="text-5xl font-bold text-green-600">FREE</span>
+                <div className="mt-3 inline-block bg-green-100 text-green-800 px-4 py-2 border-2 border-green-800 rounded-none">
+                  <span className="text-sm font-bold uppercase tracking-wide">PAUSE SUBSCRIPTION</span>
+                </div>
+              </>
+            ) : (
+              <>
+                <span className="text-5xl font-bold text-black">${product.price}</span>
+                {product.mode === 'subscription' && (
+                  <span className="text-gray-600 ml-2 text-xl">/month</span>
+                )}
+                <div className="mt-3 inline-block bg-green-100 text-green-800 px-4 py-2 border-2 border-green-800 rounded-none">
+                  <span className="text-sm font-bold uppercase tracking-wide">FULL ACCESS</span>
+                </div>
+              </>
+            )}
           </div>
         </div>
 
         <div className="space-y-4 mb-8">
-          <>
-            <div className="flex items-center gap-4">
-              <div className="w-6 h-6 bg-black flex items-center justify-center rounded-none">
-                <Check className="w-4 h-4 text-white" />
+          {isStandardProduct ? (
+            <>
+              <div className="flex items-center gap-4">
+                <div className="w-6 h-6 bg-green-600 flex items-center justify-center rounded-none">
+                  <Check className="w-4 h-4 text-white" />
+                </div>
+                <span className="text-black font-medium">Keep your account & data safe</span>
               </div>
-              <span className="text-black font-medium">Advanced AI workflow builder</span>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="w-6 h-6 bg-black flex items-center justify-center rounded-none">
-                <Check className="w-4 h-4 text-white" />
+              <div className="flex items-center gap-4">
+                <div className="w-6 h-6 bg-green-600 flex items-center justify-center rounded-none">
+                  <Check className="w-4 h-4 text-white" />
+                </div>
+                <span className="text-black font-medium">No monthly charges</span>
               </div>
-              <span className="text-black font-medium">Custom integrations & APIs</span>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="w-6 h-6 bg-black flex items-center justify-center rounded-none">
-                <Check className="w-4 h-4 text-white" />
+              <div className="flex items-center gap-4">
+                <div className="w-6 h-6 bg-green-600 flex items-center justify-center rounded-none">
+                  <Check className="w-4 h-4 text-white" />
+                </div>
+                <span className="text-black font-medium">Reactivate anytime</span>
               </div>
-              <span className="text-black font-medium">Unlimited workflow executions</span>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="w-6 h-6 bg-black flex items-center justify-center rounded-none">
-                <Check className="w-4 h-4 text-white" />
+              <div className="flex items-center gap-4">
+                <div className="w-6 h-6 bg-green-600 flex items-center justify-center rounded-none">
+                  <Check className="w-4 h-4 text-white" />
+                </div>
+                <span className="text-black font-medium">AxieStudio access paused</span>
               </div>
-              <span className="text-black font-medium">7-day free trial included</span>
-            </div>
-          </>
+            </>
+          ) : (
+            <>
+              <div className="flex items-center gap-4">
+                <div className="w-6 h-6 bg-black flex items-center justify-center rounded-none">
+                  <Check className="w-4 h-4 text-white" />
+                </div>
+                <span className="text-black font-medium">Advanced AI workflow builder</span>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="w-6 h-6 bg-black flex items-center justify-center rounded-none">
+                  <Check className="w-4 h-4 text-white" />
+                </div>
+                <span className="text-black font-medium">Custom integrations & APIs</span>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="w-6 h-6 bg-black flex items-center justify-center rounded-none">
+                  <Check className="w-4 h-4 text-white" />
+                </div>
+                <span className="text-black font-medium">Unlimited workflow executions</span>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="w-6 h-6 bg-black flex items-center justify-center rounded-none">
+                  <Check className="w-4 h-4 text-white" />
+                </div>
+                <span className="text-black font-medium">7-day free trial included</span>
+              </div>
+            </>
+          )}
         </div>
 
         <button
           onClick={handlePurchase}
           disabled={loading || (isCurrentPlan && !isStandardProduct)}
           className={`w-full py-4 px-6 rounded-none font-bold uppercase tracking-wide transition-all duration-200 border-2 ${
-            isLimitedTimeProduct
+            isStandardProduct
+              ? `border-green-600 ${
+                  isCurrentPlan
+                    ? 'bg-green-100 text-green-800 cursor-not-allowed'
+                    : loading
+                    ? 'bg-gray-400 text-white cursor-not-allowed'
+                    : 'bg-green-600 text-white hover:bg-green-700 hover:shadow-[4px_4px_0px_0px_rgba(34,197,94,0.3)] hover:translate-x-[-2px] hover:translate-y-[-2px]'
+                }`
+              : isLimitedTimeProduct
               ? `border-purple-600 ${
                   isCurrentPlan
                     ? 'bg-green-100 text-green-800 cursor-not-allowed'
@@ -160,9 +262,9 @@ export function ProductCard({ product, isCurrentPlan = false }: ProductCardProps
               PROCESSING...
             </div>
           ) : isCurrentPlan ? (
-            'CURRENT PLAN'
+            isStandardProduct ? 'CURRENT PLAN' : 'CURRENT PLAN'
           ) : (
-            `GET ${product.name.toUpperCase()}`
+            isStandardProduct ? 'PAUSE SUBSCRIPTION' : `GET ${product.name.toUpperCase()}`
           )}
         </button>
       </div>
