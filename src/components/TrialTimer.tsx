@@ -49,36 +49,39 @@ export function TrialTimer({ trialEndDate, subscriptionStatus, currentPlan }: Tr
 
   // Determine current status
   const getStatusInfo = () => {
-    // PRIORITY 1: Active subscription (including resubscribed users)
-    if (subscriptionStatus === 'active' && currentPlan !== 'Standard') {
+    // PRIORITY 1: Active premium subscription - show subscription info instead of trial countdown
+    if (subscriptionStatus === 'active' && currentPlan && currentPlan !== 'Standard') {
       return {
-        status: `${currentPlan?.toUpperCase()} ACTIVE`,
+        status: `${currentPlan.toUpperCase()} ACTIVE`,
         color: 'bg-green-600',
         textColor: 'text-green-800',
         bgColor: 'bg-green-50',
-        icon: <Clock className="w-4 h-4" />
+        icon: <CheckCircle className="w-4 h-4" />,
+        showTimer: false // Don't show countdown for active subscriptions
       };
     }
 
-    // PRIORITY 2: Trial period (only if actually trialing and has trial data)
-    if (subscriptionStatus === 'trialing' || (trialEndDate && !timeLeft.expired)) {
+    // PRIORITY 2: Trial period or trialing subscription
+    if (subscriptionStatus === 'trialing' || (trialEndDate && !timeLeft.expired && subscriptionStatus !== 'active')) {
       return {
         status: 'TRIAL PERIOD',
         color: 'bg-blue-600',
         textColor: 'text-blue-800',
         bgColor: 'bg-blue-50',
-        icon: <Clock className="w-4 h-4" />
+        icon: <Clock className="w-4 h-4" />,
+        showTimer: true
       };
     }
 
-    // PRIORITY 3: Expired or cancelled (but not if they have active subscription)
-    if ((timeLeft.expired || subscriptionStatus === 'canceled' || subscriptionStatus === 'incomplete_expired') && subscriptionStatus !== 'active') {
+    // PRIORITY 3: Expired or cancelled
+    if (timeLeft.expired || subscriptionStatus === 'canceled' || subscriptionStatus === 'incomplete_expired') {
       return {
         status: 'TRIAL EXPIRED',
         color: 'bg-red-600',
         textColor: 'text-red-800',
         bgColor: 'bg-red-50',
-        icon: <AlertCircle className="w-4 h-4" />
+        icon: <AlertCircle className="w-4 h-4" />,
+        showTimer: false
       };
     }
 
@@ -87,7 +90,8 @@ export function TrialTimer({ trialEndDate, subscriptionStatus, currentPlan }: Tr
       color: 'bg-gray-600',
       textColor: 'text-gray-800',
       bgColor: 'bg-gray-50',
-      icon: <Clock className="w-4 h-4" />
+      icon: <Clock className="w-4 h-4" />,
+      showTimer: false
     };
   };
 
@@ -116,8 +120,8 @@ export function TrialTimer({ trialEndDate, subscriptionStatus, currentPlan }: Tr
         </div>
       </div>
 
-      {/* Show timer only during trial */}
-      {(subscriptionStatus === 'trialing' || (trialEndDate && !timeLeft.expired)) && (
+      {/* Show timer only during trial periods, NOT for active premium subscriptions */}
+      {statusInfo.showTimer && (subscriptionStatus === 'trialing' || (trialEndDate && !timeLeft.expired && subscriptionStatus !== 'active')) && (
         <div className="grid grid-cols-4 gap-4 text-center">
           <div className="bg-white border-2 border-black rounded-none p-3">
             <div className="text-2xl font-bold text-black">{timeLeft.days}</div>
@@ -138,18 +142,19 @@ export function TrialTimer({ trialEndDate, subscriptionStatus, currentPlan }: Tr
         </div>
       )}
 
-      {/* Show subscription info for active subscriptions */}
-      {subscriptionStatus === 'active' && currentPlan !== 'Standard' && (
+      {/* Show subscription info for active premium subscriptions */}
+      {subscriptionStatus === 'active' && currentPlan && currentPlan !== 'Standard' && (
         <div className="bg-white border-2 border-black rounded-none p-4 text-center">
-          <div className="text-lg font-bold text-green-600">✓ SUBSCRIPTION ACTIVE</div>
+          <div className="text-lg font-bold text-green-600">✓ {currentPlan.toUpperCase()} SUBSCRIPTION ACTIVE</div>
           <div className="text-sm text-gray-600 mt-1">
-            Enjoying full access to AxieStudio
+            Full access to all premium features • No expiration countdown needed
           </div>
         </div>
       )}
 
-      {/* Show upgrade message for expired/standard */}
-      {(timeLeft.expired || !trialEndDate || subscriptionStatus === 'canceled' || currentPlan === 'Standard') && (
+      {/* Show upgrade message for expired/standard (but not for active premium) */}
+      {(timeLeft.expired || !trialEndDate || subscriptionStatus === 'canceled' || currentPlan === 'Standard') && 
+       !(subscriptionStatus === 'active' && currentPlan && currentPlan !== 'Standard') && (
         <div className="bg-white border-2 border-black rounded-none p-4 text-center">
           <div className="text-lg font-bold text-gray-600">📦 DATA PRESERVED</div>
           <div className="text-sm text-gray-600 mt-1">
