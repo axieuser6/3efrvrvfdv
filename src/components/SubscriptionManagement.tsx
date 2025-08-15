@@ -288,26 +288,15 @@ export function SubscriptionManagement() {
               <div className="flex-1">
                 <h3 className="font-bold text-green-900 uppercase tracking-wide">🔄 REACTIVATE SUBSCRIPTION</h3>
                 <p className="text-green-700 text-sm mt-1">
-                  Choose how you want to continue your subscription:
+                  Changed your mind? Reactivate your subscription and get credit for remaining time!
                 </p>
-                <div className="mt-3 space-y-3">
-                  <button
-                    onClick={handleResubscribe}
-                    disabled={resubscribing}
-                    className="w-full bg-blue-600 text-white px-4 py-2 font-bold uppercase tracking-wide hover:bg-blue-700 disabled:bg-blue-400 transition-colors border-2 border-blue-700"
-                  >
-                    {resubscribing ? '🔄 REACTIVATING...' : '🔄 REACTIVATE CURRENT SUBSCRIPTION'}
-                  </button>
-                  <Link
-                    to="/products"
-                    className="block w-full bg-green-600 text-white px-4 py-2 font-bold uppercase tracking-wide hover:bg-green-700 transition-colors border-2 border-green-700 text-center"
-                  >
-                    ✅ CREATE NEW SUBSCRIPTION
-                  </Link>
-                  <p className="text-xs text-green-600">
-                    💡 <strong>For testing:</strong> Use "Create New Subscription" to go through the full checkout flow
-                  </p>
-                </div>
+                <button
+                  onClick={handleResubscribe}
+                  disabled={resubscribing}
+                  className="mt-3 bg-green-600 text-white px-4 py-2 font-bold uppercase tracking-wide hover:bg-green-700 disabled:bg-green-400 transition-colors border-2 border-green-700"
+                >
+                  {resubscribing ? '🔄 REACTIVATING...' : '✅ RE-SUBSCRIBE NOW'}
+                </button>
               </div>
             </div>
           </div>
