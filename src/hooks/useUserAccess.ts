@@ -47,9 +47,8 @@ export function useUserAccess() {
 
         console.log('🔄 Fetching user access status for user:', user.id);
 
-        // SECURITY FIX: Use single, authoritative data source
-        // Always use the RPC function for consistent results
-        const { data: accessData, error: accessError } = await supabase.rpc('get_user_access_level', {
+        // BULLETPROOF: Use enhanced access control function
+        const { data: accessData, error: accessError } = await supabase.rpc('check_user_access_bulletproof', {
           p_user_id: user.id
         });
 
@@ -65,69 +64,46 @@ export function useUserAccess() {
         }
 
         const userAccess = accessData[0];
-        console.log('✅ User access data:', userAccess);
+        console.log('✅ Bulletproof user access data:', userAccess);
 
-        // SECURITY: Get subscription data separately for verification
+        // VERIFICATION: Get subscription data for cross-validation
         const { data: subscriptionData } = await supabase
           .from('stripe_user_subscriptions')
           .select('*')
           .eq('user_id', user.id)
           .maybeSingle();
 
-        // SECURITY: Cross-verify subscription status
+        // BULLETPROOF: Cross-verify subscription status
         const hasActiveStripeSubscription = subscriptionData?.subscription_status === 'active';
         const hasTrialingStripeSubscription = subscriptionData?.subscription_status === 'trialing';
         const isSubscriptionCancelled = subscriptionData?.cancel_at_period_end === true;
 
-        // BULLETPROOF ACCESS DETERMINATION
-        let finalHasAccess = false;
-        let finalAccessType: 'paid_subscription' | 'stripe_trial' | 'free_trial' | 'no_access' = 'no_access';
-
-        // Priority 1: Active paid subscription (highest priority)
-        if (hasActiveStripeSubscription && !isSubscriptionCancelled) {
-          finalHasAccess = true;
-          finalAccessType = 'paid_subscription';
-        }
-        // Priority 2: Trialing subscription
-        else if (hasTrialingStripeSubscription) {
-          finalHasAccess = true;
-          finalAccessType = 'stripe_trial';
-        }
-        // Priority 3: Active free trial (only if no subscription exists)
-        else if (userAccess.trial_status === 'active' && 
-                 userAccess.days_remaining > 0 && 
-                 !subscriptionData?.subscription_id) {
-          finalHasAccess = true;
-          finalAccessType = 'free_trial';
-        }
-        // Priority 4: Cancelled subscription (has access until period ends)
-        else if (hasActiveStripeSubscription && isSubscriptionCancelled) {
-          finalHasAccess = true;
-          finalAccessType = 'paid_subscription'; // Still paid until period ends
-        }
-
-        // SECURITY: Build bulletproof access status
+        // BULLETPROOF: Build comprehensive access status
         const bulletproofAccessStatus: UserAccessStatus = {
           user_id: user.id,
-          trial_start_date: userAccess.trial_start_date || '',
-          trial_end_date: userAccess.trial_end_date || '',
-          trial_status: userAccess.trial_status || 'expired',
-          deletion_scheduled_at: userAccess.deletion_scheduled_at || null,
+          trial_start_date: accessStatus?.trial_start_date || '',
+          trial_end_date: accessStatus?.trial_end_date || '',
+          trial_status: userAccess.trial_status || 'none',
+          deletion_scheduled_at: accessStatus?.deletion_scheduled_at || null,
           subscription_status: subscriptionData?.subscription_status || null,
           subscription_id: subscriptionData?.subscription_id || null,
           price_id: subscriptionData?.price_id || null,
           current_period_end: subscriptionData?.current_period_end || null,
-          has_access: finalHasAccess,
-          access_type: finalAccessType,
-          seconds_remaining: userAccess.seconds_remaining || 0,
-          days_remaining: userAccess.days_remaining || 0,
-          // SECURITY: Add verification flags
+          has_access: userAccess.has_access || false,
+          access_type: userAccess.access_type || 'no_access',
+          seconds_remaining: accessStatus?.seconds_remaining || 0,
+          days_remaining: accessStatus?.days_remaining || 0,
+          // BULLETPROOF: Enhanced security flags
           is_cancelled_subscription: isSubscriptionCancelled,
           has_stripe_subscription: !!subscriptionData?.subscription_id,
-          subscription_verification_time: fetchTime
+          subscription_verification_time: fetchTime,
+          is_expired_trial_user: userAccess.is_expired_trial_user || false,
+          is_returning_user: userAccess.is_returning_user || false,
+          requires_subscription: userAccess.requires_subscription || false,
+          can_create_axiestudio_account: userAccess.can_create_axiestudio_account || false
         };
 
-        console.log('🔒 Bulletproof access status:', bulletproofAccessStatus);
+        console.log('🔒 Bulletproof access status verified:', bulletproofAccessStatus);
         setAccessStatus(bulletproofAccessStatus);
 
       } catch (err) {

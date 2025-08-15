@@ -101,37 +101,37 @@ export function SubscriptionManagement() {
     setError(null);
 
     try {
-      console.log('🔄 Creating NEW subscription for user');
+      console.log('🔄 Starting bulletproof resubscribe process...');
 
-      // CRITICAL FIX: Create NEW subscription instead of reactivating old one
+      // BULLETPROOF FIX: Always create NEW subscription for proper billing
       const { data, error } = await supabase.functions.invoke('create-new-subscription', {
         body: { 
           price_id: import.meta.env.VITE_STRIPE_PRO_PRICE_ID 
         }
       });
 
-      console.log('📡 New subscription response:', { data, error });
+      console.log('📡 Bulletproof resubscribe response:', { data, error });
 
       if (error) {
-        console.error('❌ New subscription error:', error);
+        console.error('❌ Resubscribe error:', error);
         throw new Error(error.message || 'Failed to create new subscription');
       }
 
       if (data?.error) {
-        console.error('❌ New subscription data error:', data.error);
+        console.error('❌ Resubscribe data error:', data.error);
         throw new Error(data.error);
       }
 
       if (data?.checkout_url) {
-        console.log('✅ New subscription checkout created');
-        // Redirect to Stripe checkout for NEW subscription
+        console.log('✅ Bulletproof resubscribe checkout created');
+        // Redirect to Stripe checkout for NEW subscription (proper billing)
         window.location.href = data.checkout_url;
       } else {
         throw new Error('No checkout URL received');
       }
 
     } catch (err) {
-      console.error('❌ Error creating new subscription:', err);
+      console.error('❌ Error in bulletproof resubscribe:', err);
       setError(err instanceof Error ? err.message : 'Failed to create new subscription');
     } finally {
       setResubscribing(false);
