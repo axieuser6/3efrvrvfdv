@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useEnterpriseUser } from '../hooks/useEnterpriseUser';
 import { supabase } from '../lib/supabase';
@@ -305,7 +305,7 @@ export function UserManagementPage() {
               {!showPasswordChange ? (
                 <button
                   onClick={() => setShowPasswordChange(true)}
-                  className="flex items-center gap-2 bg-gray-600 text-white px-4 py-2 rounded-none font-bold hover:bg-gray-700 transition-colors uppercase tracking-wide text-sm"
+                  className="flex items-center gap-2 bg-black text-white px-4 py-2 rounded-none font-bold hover:bg-gray-800 transition-colors uppercase tracking-wide"
                 >
                   <Key className="w-4 h-4" />
                   Change Password
@@ -321,13 +321,13 @@ export function UserManagementPage() {
                         type={showCurrentPassword ? 'text' : 'password'}
                         value={currentPassword}
                         onChange={(e) => setCurrentPassword(e.target.value)}
-                        className="w-full p-3 border-2 border-gray-300 rounded-none focus:border-black focus:outline-none"
+                        className="w-full p-3 border-2 border-black rounded-none focus:outline-none focus:ring-2 focus:ring-black"
                         required
                       />
                       <button
                         type="button"
                         onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-600 hover:text-black"
                       >
                         {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
@@ -343,14 +343,14 @@ export function UserManagementPage() {
                         type={showNewPassword ? 'text' : 'password'}
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
-                        className="w-full p-3 border-2 border-gray-300 rounded-none focus:border-black focus:outline-none"
+                        className="w-full p-3 border-2 border-black rounded-none focus:outline-none focus:ring-2 focus:ring-black"
                         required
                         minLength={6}
                       />
                       <button
                         type="button"
                         onClick={() => setShowNewPassword(!showNewPassword)}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-600 hover:text-black"
                       >
                         {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
@@ -366,14 +366,14 @@ export function UserManagementPage() {
                         type={showConfirmPassword ? 'text' : 'password'}
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
-                        className="w-full p-3 border-2 border-gray-300 rounded-none focus:border-black focus:outline-none"
+                        className="w-full p-3 border-2 border-black rounded-none focus:outline-none focus:ring-2 focus:ring-black"
                         required
                         minLength={6}
                       />
                       <button
                         type="button"
                         onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-600 hover:text-black"
                       >
                         {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
@@ -384,14 +384,21 @@ export function UserManagementPage() {
                     <button
                       type="submit"
                       disabled={isChangingPassword}
-                      className="bg-black text-white px-4 py-2 font-bold uppercase tracking-wide hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="flex items-center gap-2 bg-black text-white px-4 py-2 rounded-none font-bold hover:bg-gray-800 transition-colors uppercase tracking-wide disabled:opacity-50"
                     >
+                      <Key className="w-4 h-4" />
                       {isChangingPassword ? 'Updating...' : 'Update Password'}
                     </button>
                     <button
                       type="button"
-                      onClick={() => setShowPasswordChange(false)}
-                      className="bg-gray-300 text-black px-4 py-2 font-bold uppercase tracking-wide hover:bg-gray-400 transition-colors"
+                      onClick={() => {
+                        setShowPasswordChange(false);
+                        setCurrentPassword('');
+                        setNewPassword('');
+                        setConfirmPassword('');
+                        setPasswordChangeMessage('');
+                      }}
+                      className="bg-gray-600 text-white px-4 py-2 rounded-none font-bold hover:bg-gray-700 transition-colors uppercase tracking-wide"
                     >
                       Cancel
                     </button>
@@ -406,7 +413,7 @@ export function UserManagementPage() {
                 <h2 className="text-xl font-bold text-black mb-6 uppercase tracking-wide">
                   Subscription Details
                 </h2>
-
+                
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {enterpriseState.stripe_customer_id && (
                     <div className="p-4 border-2 border-gray-200 rounded-none">
@@ -414,21 +421,21 @@ export function UserManagementPage() {
                       <p className="font-mono text-sm text-black">{enterpriseState.stripe_customer_id}</p>
                     </div>
                   )}
-
+                  
                   {enterpriseState.stripe_status && (
                     <div className="p-4 border-2 border-gray-200 rounded-none">
                       <p className="text-sm text-gray-600 uppercase tracking-wide mb-2">Subscription Status</p>
                       <p className="font-bold text-black capitalize">{enterpriseState.stripe_status}</p>
                     </div>
                   )}
-
+                  
                   {enterpriseState.trial_days_remaining > 0 && (
                     <div className="p-4 border-2 border-orange-200 bg-orange-50 rounded-none">
                       <p className="text-sm text-orange-600 uppercase tracking-wide mb-2">Trial Days Remaining</p>
                       <p className="font-bold text-orange-800">{enterpriseState.trial_days_remaining} days</p>
                     </div>
                   )}
-
+                  
                   {enterpriseState.axie_studio_user_id && (
                     <div className="p-4 border-2 border-gray-200 rounded-none">
                       <p className="text-sm text-gray-600 uppercase tracking-wide mb-2">AxieStudio Account</p>
@@ -444,7 +451,7 @@ export function UserManagementPage() {
               <h2 className="text-xl font-bold text-black mb-6 uppercase tracking-wide">
                 Account Actions
               </h2>
-
+              
               <div className="space-y-4">
                 <div className="p-4 border-2 border-red-200 bg-red-50 rounded-none">
                   <div className="flex items-center gap-3 mb-4">
@@ -453,26 +460,29 @@ export function UserManagementPage() {
                       Danger Zone
                     </h3>
                   </div>
-
+                  
                   <p className="text-red-700 mb-4">
-                    Permanently delete your account and all associated data. This action cannot be undone.
+                    <strong>IMMEDIATE DELETION:</strong> This will instantly remove your account and all access,
+                    regardless of any active subscription or trial time remaining. All data will be permanently deleted
+                    and your AxieStudio account will be removed. This action cannot be undone.
                   </p>
-
+                  
                   {!showDeleteConfirm ? (
                     <div className="space-y-3">
                       <button
                         onClick={() => setShowDeleteConfirm(true)}
-                        className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 font-bold uppercase tracking-wide hover:bg-red-700 transition-colors"
+                        className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-none font-bold hover:bg-red-700 uppercase tracking-wide"
                       >
                         <Trash2 className="w-4 h-4" />
-                        Delete Account
+                        DELETE ACCOUNT IMMEDIATELY
                       </button>
+
                       {isAdmin && (
                         <button
-                          onClick={() => debugAccountDeletion(user?.id || '')}
-                          className="flex items-center gap-2 bg-yellow-600 text-white px-4 py-2 font-bold uppercase tracking-wide hover:bg-yellow-700 transition-colors ml-4"
+                          onClick={debugDeletion}
+                          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-none font-bold hover:bg-blue-700 uppercase tracking-wide text-sm"
                         >
-                          Debug Deletion
+                          🔍 DEBUG DELETION ISSUES
                         </button>
                       )}
                     </div>
@@ -485,13 +495,14 @@ export function UserManagementPage() {
                         <button
                           onClick={handleDeleteAccount}
                           disabled={isDeleting}
-                          className="bg-red-600 text-white px-4 py-2 font-bold uppercase tracking-wide hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-none font-bold hover:bg-red-700 disabled:opacity-50 uppercase tracking-wide"
                         >
-                          {isDeleting ? 'Deleting...' : 'Yes, Delete Account'}
+                          <Trash2 className="w-4 h-4" />
+                          {isDeleting ? 'DELETING...' : 'YES, DELETE IMMEDIATELY'}
                         </button>
                         <button
                           onClick={() => setShowDeleteConfirm(false)}
-                          className="bg-gray-300 text-black px-4 py-2 font-bold uppercase tracking-wide hover:bg-gray-400 transition-colors"
+                          className="bg-gray-600 text-white px-4 py-2 rounded-none font-bold hover:bg-gray-700"
                         >
                           Cancel
                         </button>
@@ -501,237 +512,6 @@ export function UserManagementPage() {
                 </div>
               </div>
             </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-            {/* Security Settings */}
-            <div className="bg-white border-2 border-black rounded-none shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-6">
-          <h2 className="text-xl font-bold text-black mb-6 uppercase tracking-wide">
-            Security Settings
-          </h2>
-
-          {passwordChangeMessage && (
-            <div className={`p-4 border-2 rounded-none mb-6 ${
-              passwordChangeMessage.includes('successfully')
-                ? 'border-green-200 bg-green-50 text-green-800'
-                : 'border-red-200 bg-red-50 text-red-800'
-            }`}>
-              {passwordChangeMessage}
-            </div>
-          )}
-
-          {!showPasswordChange ? (
-            <button
-              onClick={() => setShowPasswordChange(true)}
-              className="flex items-center gap-2 bg-black text-white px-4 py-2 rounded-none font-bold hover:bg-gray-800 transition-colors uppercase tracking-wide"
-            >
-              <Key className="w-4 h-4" />
-              Change Password
-            </button>
-          ) : (
-            <form onSubmit={handlePasswordChange} className="space-y-4">
-              <div>
-                <label className="block text-sm font-bold text-black uppercase tracking-wide mb-2">
-                  Current Password
-                </label>
-                <div className="relative">
-                  <input
-                    type={showCurrentPassword ? 'text' : 'password'}
-                    value={currentPassword}
-                    onChange={(e) => setCurrentPassword(e.target.value)}
-                    className="w-full p-3 border-2 border-black rounded-none focus:outline-none focus:ring-2 focus:ring-black"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-600 hover:text-black"
-                  >
-                    {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-bold text-black uppercase tracking-wide mb-2">
-                  New Password
-                </label>
-                <div className="relative">
-                  <input
-                    type={showNewPassword ? 'text' : 'password'}
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    className="w-full p-3 border-2 border-black rounded-none focus:outline-none focus:ring-2 focus:ring-black"
-                    required
-                    minLength={6}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowNewPassword(!showNewPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-600 hover:text-black"
-                  >
-                    {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-bold text-black uppercase tracking-wide mb-2">
-                  Confirm New Password
-                </label>
-                <div className="relative">
-                  <input
-                    type={showConfirmPassword ? 'text' : 'password'}
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="w-full p-3 border-2 border-black rounded-none focus:outline-none focus:ring-2 focus:ring-black"
-                    required
-                    minLength={6}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-600 hover:text-black"
-                  >
-                    {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex gap-4">
-                <button
-                  type="submit"
-                  disabled={isChangingPassword}
-                  className="flex items-center gap-2 bg-black text-white px-4 py-2 rounded-none font-bold hover:bg-gray-800 transition-colors uppercase tracking-wide disabled:opacity-50"
-                >
-                  <Key className="w-4 h-4" />
-                  {isChangingPassword ? 'Updating...' : 'Update Password'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowPasswordChange(false);
-                    setCurrentPassword('');
-                    setNewPassword('');
-                    setConfirmPassword('');
-                    setPasswordChangeMessage('');
-                  }}
-                  className="bg-gray-600 text-white px-4 py-2 rounded-none font-bold hover:bg-gray-700 transition-colors uppercase tracking-wide"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          )}
-        </div>
-
-        {/* Subscription Information */}
-        {isEnterpriseEnabled && enterpriseState && (
-          <div className="bg-white border-2 border-black rounded-none shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-6">
-            <h2 className="text-xl font-bold text-black mb-6 uppercase tracking-wide">
-              Subscription Details
-            </h2>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {enterpriseState.stripe_customer_id && (
-                <div className="p-4 border-2 border-gray-200 rounded-none">
-                  <p className="text-sm text-gray-600 uppercase tracking-wide mb-2">Stripe Customer ID</p>
-                  <p className="font-mono text-sm text-black">{enterpriseState.stripe_customer_id}</p>
-                </div>
-              )}
-              
-              {enterpriseState.stripe_status && (
-                <div className="p-4 border-2 border-gray-200 rounded-none">
-                  <p className="text-sm text-gray-600 uppercase tracking-wide mb-2">Subscription Status</p>
-                  <p className="font-bold text-black capitalize">{enterpriseState.stripe_status}</p>
-                </div>
-              )}
-              
-              {enterpriseState.trial_days_remaining > 0 && (
-                <div className="p-4 border-2 border-orange-200 bg-orange-50 rounded-none">
-                  <p className="text-sm text-orange-600 uppercase tracking-wide mb-2">Trial Days Remaining</p>
-                  <p className="font-bold text-orange-800">{enterpriseState.trial_days_remaining} days</p>
-                </div>
-              )}
-              
-              {enterpriseState.axie_studio_user_id && (
-                <div className="p-4 border-2 border-gray-200 rounded-none">
-                  <p className="text-sm text-gray-600 uppercase tracking-wide mb-2">AxieStudio Account</p>
-                  <p className="font-mono text-sm text-black">{enterpriseState.axie_studio_user_id}</p>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-            {/* Account Actions */}
-            <div className="bg-white border-2 border-black rounded-none shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-6">
-          <h2 className="text-xl font-bold text-black mb-6 uppercase tracking-wide">
-            Account Actions
-          </h2>
-          
-          <div className="space-y-4">
-            <div className="p-4 border-2 border-red-200 bg-red-50 rounded-none">
-              <div className="flex items-center gap-3 mb-4">
-                <AlertTriangle className="w-6 h-6 text-red-600" />
-                <h3 className="text-lg font-bold text-red-800 uppercase tracking-wide">
-                  Danger Zone
-                </h3>
-              </div>
-              
-              <p className="text-red-700 mb-4">
-                <strong>IMMEDIATE DELETION:</strong> This will instantly remove your account and all access,
-                regardless of any active subscription or trial time remaining. All data will be permanently deleted
-                and your AxieStudio account will be removed. This action cannot be undone.
-              </p>
-              
-              {!showDeleteConfirm ? (
-                <div className="space-y-3">
-                  <button
-                    onClick={() => setShowDeleteConfirm(true)}
-                    className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-none font-bold hover:bg-red-700 uppercase tracking-wide"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                    DELETE ACCOUNT IMMEDIATELY
-                  </button>
-
-                  {isAdmin && (
-                    <button
-                      onClick={debugDeletion}
-                      className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-none font-bold hover:bg-blue-700 uppercase tracking-wide text-sm"
-                    >
-                      🔍 DEBUG DELETION ISSUES
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <p className="font-bold text-red-800">
-                    Are you absolutely sure? This action cannot be undone.
-                  </p>
-                  <div className="flex gap-4">
-                    <button
-                      onClick={handleDeleteAccount}
-                      disabled={isDeleting}
-                      className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-none font-bold hover:bg-red-700 disabled:opacity-50 uppercase tracking-wide"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                      {isDeleting ? 'DELETING...' : 'YES, DELETE IMMEDIATELY'}
-                    </button>
-                    <button
-                      onClick={() => setShowDeleteConfirm(false)}
-                      className="bg-gray-600 text-white px-4 py-2 rounded-none font-bold hover:bg-gray-700"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
           </div>
         </div>
       </div>
