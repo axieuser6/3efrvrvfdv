@@ -16,6 +16,12 @@ export interface UserAccessStatus {
   access_type: 'paid_subscription' | 'stripe_trial' | 'free_trial' | 'no_access';
   seconds_remaining: number;
   days_remaining: number;
+  // SECURITY: Enhanced tracking
+  is_cancelled_subscription?: boolean;
+  has_stripe_subscription?: boolean;
+  subscription_verification_time?: number;
+  is_expired_trial_user?: boolean;
+  can_create_axiestudio_account?: boolean;
 }
 
 export function useUserAccess() {
@@ -23,6 +29,7 @@ export function useUserAccess() {
   const [accessStatus, setAccessStatus] = useState<UserAccessStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [lastFetch, setLastFetch] = useState<number>(0);
 
   useEffect(() => {
     if (!user) {
@@ -35,181 +42,94 @@ export function useUserAccess() {
       try {
         setLoading(true);
         setError(null);
+        const fetchTime = Date.now();
+        setLastFetch(fetchTime);
 
         console.log('🔄 Fetching user access status for user:', user.id);
 
-        // Try enterprise dashboard view first (best option)
-        const { data: dashboardData, error: dashboardError } = await supabase
-          .from('user_dashboard')
-          .select('*')
-          .maybeSingle();
+        // SECURITY FIX: Use single, authoritative data source
+        // Always use the RPC function for consistent results
+        const { data: accessData, error: accessError } = await supabase.rpc('get_user_access_level', {
+          p_user_id: user.id
+        });
 
-        if (dashboardData && !dashboardError) {
-          console.log('✅ Successfully fetched from enterprise user_dashboard:', dashboardData);
-          // Convert enterprise format to expected format
-          const enterpriseData = {
-            user_id: dashboardData.user_id,
-            trial_start_date: dashboardData.trial_start_date,
-            trial_end_date: dashboardData.trial_end_date,
-            trial_status: dashboardData.trial_status,
-            deletion_scheduled_at: null,
-            subscription_status: dashboardData.stripe_status,
-            subscription_id: dashboardData.stripe_subscription_id,
-            price_id: dashboardData.price_id,
-            current_period_end: dashboardData.current_period_end,
-            has_access: dashboardData.has_access,
-            access_type: dashboardData.access_level === 'pro' ? 'paid_subscription' :
-                        dashboardData.access_level === 'trial' ? 'free_trial' : 'no_access',
-            seconds_remaining: dashboardData.trial_days_remaining * 24 * 60 * 60,
-            days_remaining: dashboardData.trial_days_remaining
-          };
-          setAccessStatus(enterpriseData);
+        if (accessError) {
+          console.error('❌ Access check failed:', accessError);
+          throw accessError;
+        }
+
+        if (!accessData || accessData.length === 0) {
+          console.log('⚠️ No access data found for user');
+          setAccessStatus(null);
           return;
         }
 
-        console.log('⚠️ Enterprise dashboard not available, trying user_access_status view:', dashboardError);
+        const userAccess = accessData[0];
+        console.log('✅ User access data:', userAccess);
 
-        // Try to use the user_access_status view (basic option)
-        const { data: accessData, error: accessError } = await supabase
-          .from('user_access_status')
-          .select('*')
-          .eq('user_id', user.id)
-          .maybeSingle();
-
-        if (accessData && !accessError) {
-          console.log('✅ Successfully fetched from user_access_status view:', accessData);
-          setAccessStatus(accessData);
-          return;
-        }
-
-        console.log('⚠️ user_access_status view failed, trying individual queries:', accessError);
-
-        // Fallback: Query individual tables/views
-        const { data: trialData, error: trialError } = await supabase
-          .from('user_trial_info')
-          .select('*')
-          .maybeSingle();
-
-        console.log('Trial data result:', { trialData, trialError });
-
-        const { data: subscriptionData, error: subscriptionError } = await supabase
+        // SECURITY: Get subscription data separately for verification
+        const { data: subscriptionData } = await supabase
           .from('stripe_user_subscriptions')
           .select('*')
           .eq('user_id', user.id)
           .maybeSingle();
 
-        console.log('Subscription data result:', { subscriptionData, subscriptionError });
+        // SECURITY: Cross-verify subscription status
+        const hasActiveStripeSubscription = subscriptionData?.subscription_status === 'active';
+        const hasTrialingStripeSubscription = subscriptionData?.subscription_status === 'trialing';
+        const isSubscriptionCancelled = subscriptionData?.cancel_at_period_end === true;
 
-        // If subscription query fails (multiple rows), try querying the base tables directly
-        if (subscriptionError && subscriptionError.code === 'PGRST116') {
-          console.log('⚠️ Views failed, trying base tables...');
+        // BULLETPROOF ACCESS DETERMINATION
+        let finalHasAccess = false;
+        let finalAccessType: 'paid_subscription' | 'stripe_trial' | 'free_trial' | 'no_access' = 'no_access';
 
-          // Use trial data from the view if available, otherwise query directly
-          let userTrialData = trialData;
-          if (!userTrialData && trialError) {
-            const { data: directTrialData, error: userTrialError } = await supabase
-              .from('user_trials')
-              .select('*')
-              .eq('user_id', user.id)
-              .maybeSingle();
-            userTrialData = directTrialData;
-            console.log('User trials result:', { userTrialData, userTrialError });
-          }
-
-          // Query stripe data through customers table
-          const { data: stripeData, error: stripeError } = await supabase
-            .from('stripe_customers')
-            .select(`
-              customer_id,
-              stripe_subscriptions (
-                subscription_id,
-                status,
-                price_id,
-                current_period_end
-              )
-            `)
-            .eq('user_id', user.id)
-            .is('deleted_at', null)
-            .maybeSingle();
-
-          console.log('Stripe data result:', { stripeData, stripeError });
-
-          // Combine the data from base tables
-          const subscription = stripeData?.stripe_subscriptions?.[0];
-
-          // Determine access type - prioritize subscription status
-          let access_type: 'paid_subscription' | 'stripe_trial' | 'free_trial' | 'no_access' = 'no_access';
-          let has_access = false;
-
-          if (subscription?.status === 'active') {
-            access_type = 'paid_subscription';
-            has_access = true;
-          } else if (subscription?.status === 'trialing') {
-            access_type = 'stripe_trial';
-            has_access = true;
-          } else if (userTrialData?.trial_status === 'active' && userTrialData && new Date(userTrialData.trial_end_date) > new Date()) {
-            access_type = 'free_trial';
-            has_access = true;
-          }
-
-          const combinedData = {
-            user_id: user.id,
-            trial_start_date: userTrialData?.trial_start_date || '',
-            trial_end_date: userTrialData?.trial_end_date || '',
-            trial_status: subscription?.status === 'active' ? 'converted_to_paid' : userTrialData?.trial_status || 'expired',
-            deletion_scheduled_at: userTrialData?.deletion_scheduled_at || null,
-            subscription_status: subscription?.status || null,
-            subscription_id: subscription?.subscription_id || null,
-            price_id: subscription?.price_id || null,
-            current_period_end: subscription?.current_period_end || null,
-            has_access,
-            access_type,
-            seconds_remaining: userTrialData && new Date(userTrialData.trial_end_date) > new Date()
-              ? Math.floor((new Date(userTrialData.trial_end_date).getTime() - new Date().getTime()) / 1000)
-              : 0,
-            days_remaining: userTrialData && new Date(userTrialData.trial_end_date) > new Date()
-              ? Math.ceil((new Date(userTrialData.trial_end_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
-              : 0
-          };
-
-          console.log('✅ Combined data from base tables:', combinedData);
-          setAccessStatus(combinedData);
-          return;
+        // Priority 1: Active paid subscription (highest priority)
+        if (hasActiveStripeSubscription && !isSubscriptionCancelled) {
+          finalHasAccess = true;
+          finalAccessType = 'paid_subscription';
+        }
+        // Priority 2: Trialing subscription
+        else if (hasTrialingStripeSubscription) {
+          finalHasAccess = true;
+          finalAccessType = 'stripe_trial';
+        }
+        // Priority 3: Active free trial (only if no subscription exists)
+        else if (userAccess.trial_status === 'active' && 
+                 userAccess.days_remaining > 0 && 
+                 !subscriptionData?.subscription_id) {
+          finalHasAccess = true;
+          finalAccessType = 'free_trial';
+        }
+        // Priority 4: Cancelled subscription (has access until period ends)
+        else if (hasActiveStripeSubscription && isSubscriptionCancelled) {
+          finalHasAccess = true;
+          finalAccessType = 'paid_subscription'; // Still paid until period ends
         }
 
-        // Combine the data from views - prioritize subscription status
-        let access_type: 'paid_subscription' | 'stripe_trial' | 'free_trial' | 'no_access' = 'no_access';
-        let has_access = false;
-
-        if (subscriptionData?.subscription_status === 'active') {
-          access_type = 'paid_subscription';
-          has_access = true;
-        } else if (subscriptionData?.subscription_status === 'trialing') {
-          access_type = 'stripe_trial';
-          has_access = true;
-        } else if (trialData?.trial_status === 'active' && trialData?.days_remaining > 0) {
-          access_type = 'free_trial';
-          has_access = true;
-        }
-
-        const combinedData = {
+        // SECURITY: Build bulletproof access status
+        const bulletproofAccessStatus: UserAccessStatus = {
           user_id: user.id,
-          trial_start_date: trialData?.trial_start_date || '',
-          trial_end_date: trialData?.trial_end_date || '',
-          trial_status: subscriptionData?.subscription_status === 'active' ? 'converted_to_paid' : trialData?.trial_status || 'expired',
-          deletion_scheduled_at: trialData?.deletion_scheduled_at || null,
+          trial_start_date: userAccess.trial_start_date || '',
+          trial_end_date: userAccess.trial_end_date || '',
+          trial_status: userAccess.trial_status || 'expired',
+          deletion_scheduled_at: userAccess.deletion_scheduled_at || null,
           subscription_status: subscriptionData?.subscription_status || null,
           subscription_id: subscriptionData?.subscription_id || null,
           price_id: subscriptionData?.price_id || null,
           current_period_end: subscriptionData?.current_period_end || null,
-          has_access,
-          access_type,
-          seconds_remaining: trialData?.seconds_remaining || 0,
-          days_remaining: trialData?.days_remaining || 0
+          has_access: finalHasAccess,
+          access_type: finalAccessType,
+          seconds_remaining: userAccess.seconds_remaining || 0,
+          days_remaining: userAccess.days_remaining || 0,
+          // SECURITY: Add verification flags
+          is_cancelled_subscription: isSubscriptionCancelled,
+          has_stripe_subscription: !!subscriptionData?.subscription_id,
+          subscription_verification_time: fetchTime
         };
 
-        console.log('✅ Combined data from views:', combinedData);
-        setAccessStatus(combinedData);
+        console.log('🔒 Bulletproof access status:', bulletproofAccessStatus);
+        setAccessStatus(bulletproofAccessStatus);
+
       } catch (err) {
         console.error('Error fetching user access status:', err);
         setError(err instanceof Error ? err.message : 'Failed to fetch access status');
@@ -221,7 +141,7 @@ export function useUserAccess() {
 
     fetchAccessStatus();
 
-    // Set up real-time subscription for access status updates
+    // SECURITY: More frequent polling for subscription changes
     const subscription = supabase
       .channel('user_access_updates')
       .on('postgres_changes',
@@ -249,16 +169,37 @@ export function useUserAccess() {
       )
       .subscribe();
 
+    // SECURITY: Poll every 5 seconds for critical subscription changes
+    const pollInterval = setInterval(() => {
+      // Only poll if data is older than 5 seconds
+      if (Date.now() - lastFetch > 5000) {
+        fetchAccessStatus();
+      }
+    }, 5000);
+
     return () => {
       subscription.unsubscribe();
+      clearInterval(pollInterval);
     };
-  }, [user]);
+  }, [user, lastFetch]);
 
   const hasAccess = accessStatus?.has_access || false;
   const isPaidUser = accessStatus?.access_type === 'paid_subscription';
   const isTrialing = accessStatus?.access_type === 'stripe_trial';
   const isFreeTrialing = accessStatus?.access_type === 'free_trial';
-  const isProtected = isPaidUser || isTrialing || accessStatus?.trial_status === 'converted_to_paid';
+  
+  // SECURITY: Enhanced protection logic
+  const isProtected = isPaidUser || 
+                     isTrialing || 
+                     (accessStatus?.subscription_status === 'active' && !accessStatus?.is_cancelled_subscription) ||
+                     accessStatus?.trial_status === 'converted_to_paid';
+  
+  // SECURITY: Additional security flags
+  const isExpiredTrialUser = accessStatus?.trial_status === 'expired' || 
+                            accessStatus?.trial_status === 'scheduled_for_deletion';
+  const canCreateAxieStudioAccount = hasAccess && 
+                                    !isExpiredTrialUser && 
+                                    (isPaidUser || isTrialing || isFreeTrialing);
 
   return {
     accessStatus,
@@ -269,6 +210,10 @@ export function useUserAccess() {
     isTrialing,
     isFreeTrialing,
     isProtected,
+    // SECURITY: New security flags
+    isExpiredTrialUser,
+    canCreateAxieStudioAccount,
+    lastFetch,
     refetch: () => {
       if (user) {
         setLoading(true);

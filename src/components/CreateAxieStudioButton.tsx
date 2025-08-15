@@ -26,23 +26,40 @@ export function CreateAxieStudioButton({ className = '', onAccountCreated }: Cre
 
   // 🚨 NEW LOGIC: Don't render if user doesn't have active access
   // Users with expired trials should not be able to create AxieStudio accounts
-  if (!hasAccess || accessStatus?.trial_status === 'expired' || accessStatus?.trial_status === 'scheduled_for_deletion') {
+  
+  // BULLETPROOF ACCESS CONTROL: Check multiple conditions
+  const isExpiredTrialUser = accessStatus?.trial_status === 'expired' || 
+                             accessStatus?.trial_status === 'scheduled_for_deletion';
+  const hasActiveSubscription = accessStatus?.subscription_status === 'active';
+  const hasActiveTrial = accessStatus?.trial_status === 'active' && accessStatus?.days_remaining > 0;
+  
+  // SECURITY: Only allow AxieStudio account creation for:
+  // 1. Users with active paid subscription
+  // 2. Users with active trial (not expired)
+  // BLOCK: Expired trial users, even if they re-signup
+  if (!hasAccess || (!hasActiveSubscription && !hasActiveTrial) || isExpiredTrialUser) {
     return (
       <div className="flex flex-col items-center gap-3">
         <div className={`inline-flex items-center gap-3 px-8 py-4 font-bold uppercase tracking-wide border-2 opacity-50 cursor-not-allowed bg-gray-400 border-gray-400 text-gray-600 ${className}`}>
           <UserPlus className="w-5 h-5" />
-          CREATE AXIE STUDIO ACCOUNT
+          CREATE AXIE STUDIO ACCOUNT (DISABLED)
         </div>
         <div className="text-center">
           <p className="text-sm text-gray-600 mb-2">
-            🔒 AxieStudio account creation requires an active subscription or trial
+            🔒 AxieStudio account creation requires an active subscription
+          </p>
+          <p className="text-xs text-red-600 mb-2">
+            {isExpiredTrialUser ? 
+              '⚠️ Your trial has expired. Subscribe to access AxieStudio features.' :
+              '⚠️ Active subscription required for AxieStudio access.'
+            }
           </p>
           <Link
             to="/products"
             className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-none font-bold hover:bg-blue-700 transition-colors uppercase tracking-wide text-xs"
           >
             <Crown className="w-4 h-4" />
-            RESUBSCRIBE TO ACCESS
+            SUBSCRIBE TO ACCESS
           </Link>
         </div>
       </div>

@@ -97,42 +97,42 @@ export function SubscriptionManagement() {
   };
 
   const handleResubscribe = async () => {
-    if (!subscription?.subscription_id) {
-      setError('No subscription found');
-      return;
-    }
-
     setResubscribing(true);
     setError(null);
 
     try {
-      console.log('🔄 Re-activating subscription:', subscription.subscription_id);
+      console.log('🔄 Creating NEW subscription for user');
 
-      const { data, error } = await supabase.functions.invoke('reactivate-subscription', {
-        body: { subscription_id: subscription.subscription_id }
+      // CRITICAL FIX: Create NEW subscription instead of reactivating old one
+      const { data, error } = await supabase.functions.invoke('create-new-subscription', {
+        body: { 
+          price_id: import.meta.env.VITE_STRIPE_PRO_PRICE_ID 
+        }
       });
 
-      console.log('📡 Reactivation response:', { data, error });
+      console.log('📡 New subscription response:', { data, error });
 
       if (error) {
-        console.error('❌ Reactivation error:', error);
-        throw new Error(error.message || 'Failed to reactivate subscription');
+        console.error('❌ New subscription error:', error);
+        throw new Error(error.message || 'Failed to create new subscription');
       }
 
       if (data?.error) {
-        console.error('❌ Reactivation data error:', data.error);
+        console.error('❌ New subscription data error:', data.error);
         throw new Error(data.error);
       }
 
-      if (data?.success) {
-        console.log('✅ Subscription reactivated successfully');
-        // Refresh the page to update all components
-        window.location.reload();
+      if (data?.checkout_url) {
+        console.log('✅ New subscription checkout created');
+        // Redirect to Stripe checkout for NEW subscription
+        window.location.href = data.checkout_url;
+      } else {
+        throw new Error('No checkout URL received');
       }
 
     } catch (err) {
-      console.error('❌ Error reactivating subscription:', err);
-      setError(err instanceof Error ? err.message : 'Failed to reactivate subscription');
+      console.error('❌ Error creating new subscription:', err);
+      setError(err instanceof Error ? err.message : 'Failed to create new subscription');
     } finally {
       setResubscribing(false);
     }
@@ -371,10 +371,10 @@ export function SubscriptionManagement() {
                   {canceling ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      CANCELING...
+                      CREATING SUBSCRIPTION...
                     </>
                   ) : (
-                    'YES, CANCEL & DELETE'
+                    'CREATE NEW SUBSCRIPTION'
                   )}
                 </button>
               </div>
