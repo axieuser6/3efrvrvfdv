@@ -20,6 +20,7 @@ export function StartTrialButton({ onTrialStarted, className = '' }: StartTrialB
     trial_completed: boolean;
     requires_subscription: boolean;
   } | null>(null);
+  const [statusLoading, setStatusLoading] = useState(true);
 
   // Check if user is returning and has used trial
   React.useEffect(() => {
@@ -27,38 +28,60 @@ export function StartTrialButton({ onTrialStarted, className = '' }: StartTrialB
       if (!user?.email) return;
 
       try {
+        setStatusLoading(true);
         const { data } = await supabase.rpc('check_email_trial_history', {
           p_email: user.email
         });
 
         if (data && data.length > 0) {
           setReturningUserStatus(data[0]);
+          console.log('🔍 Trial history check result:', data[0]);
         }
       } catch (error) {
         console.error('Error checking trial history:', error);
+      } finally {
+        setStatusLoading(false);
       }
     };
 
     checkTrialHistory();
   }, [user?.email]);
 
-  // Don't show trial button if user has already used their trial
-  if (returningUserStatus?.has_used_trial && returningUserStatus?.trial_completed) {
+  // Show loading state while checking trial history
+  if (statusLoading) {
     return (
       <div className={`${className} text-center`}>
-        <div className="bg-orange-50 border-2 border-orange-200 rounded-lg p-6">
-          <div className="text-orange-600 mb-3">
+        <div className="bg-gray-50 border-2 border-gray-200 rounded-lg p-6">
+          <div className="animate-spin w-6 h-6 border-2 border-gray-400 border-t-transparent rounded-full mx-auto mb-3"></div>
+          <p className="text-gray-600 text-sm">Checking trial eligibility...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't show trial button if user has already used their trial
+  if (returningUserStatus?.has_used_trial) {
+    console.log('🚫 BLOCKING TRIAL: User has already used their trial');
+    return (
+      <div className={`${className} text-center`}>
+        <div className="bg-red-50 border-2 border-red-200 rounded-none p-6">
+          <div className="text-red-600 mb-3">
             <AlertTriangle className="w-8 h-8 mx-auto" />
           </div>
-          <h3 className="text-lg font-bold text-orange-800 mb-2 uppercase tracking-wide">
+          <h3 className="text-lg font-bold text-red-800 mb-2 uppercase tracking-wide">
             TRIAL ALREADY USED
           </h3>
-          <p className="text-orange-700 text-sm mb-4">
+          <p className="text-red-700 text-sm mb-4">
             You've already used your 7-day free trial. Subscribe to access premium features.
           </p>
+          <div className="bg-red-100 border border-red-300 rounded-none p-3 mb-4">
+            <p className="text-red-800 text-xs font-bold uppercase tracking-wide">
+              🛡️ SECURITY: One trial per email address
+            </p>
+          </div>
           <Link
             to="/products"
-            className="inline-flex items-center gap-2 bg-orange-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-orange-700 transition-colors uppercase tracking-wide"
+            className="inline-flex items-center gap-2 bg-red-600 text-white px-6 py-3 rounded-none font-bold hover:bg-red-700 transition-colors uppercase tracking-wide"
           >
             <Crown className="w-4 h-4" />
             SUBSCRIBE NOW
@@ -70,8 +93,11 @@ export function StartTrialButton({ onTrialStarted, className = '' }: StartTrialB
 
   // Don't show if user already has access
   if (accessStatus?.has_access) {
+    console.log('ℹ️ User already has access, hiding trial button');
     return null;
   }
+
+  console.log('✅ SHOWING TRIAL BUTTON: New user eligible for trial');
 
   const handleStartTrial = async () => {
     if (!user) {
