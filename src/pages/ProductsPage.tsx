@@ -12,7 +12,7 @@ import { Link } from 'react-router-dom';
 export function ProductsPage() {
   const { subscription, loading } = useSubscription();
   const { config: productConfig, loading: configLoading } = useProductConfig();
-  const { userAccess, accessStatus, loading: accessLoading } = useUserAccess();
+  const { userAccess, accessStatus, loading: accessLoading, isPaidUser } = useUserAccess();
 
   if (loading || configLoading || accessLoading) {
     return (
