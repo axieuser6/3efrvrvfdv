@@ -39,12 +39,15 @@ export function ProductCard({ product, isCurrentPlan = false }: ProductCardProps
           throw new Error('Please sign in to continue');
         }
 
-        const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/cancel-subscription`, {
+        const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/switch-to-standard`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${session.access_token}`,
           },
+          body: JSON.stringify({
+            user_action: 'switch_to_standard'
+          }),
         });
 
         if (!response.ok) {
@@ -52,9 +55,11 @@ export function ProductCard({ product, isCurrentPlan = false }: ProductCardProps
           throw new Error(errorData.error || 'Failed to cancel subscription');
         }
 
+        const result = await response.json();
+        
         // Refresh access status after cancellation
         refetchAccess();
-        alert('Subscription paused successfully. Your account and data are safe.');
+        alert(result.message || 'Subscription paused successfully. Your account and data are safe.');
       } catch (error: any) {
         console.error('Cancellation error:', error);
         alert(error.message || 'Failed to pause subscription');
