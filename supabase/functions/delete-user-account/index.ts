@@ -181,6 +181,8 @@ Deno.serve(async (req) => {
 
     // STEP 1: Record deletion history FIRST (critical for abuse prevention)
     let userEmail: string | null = null;
+    let trialUsed: boolean = false;
+    let trialCompleted: boolean = false;
     try {
       console.log('🔄 Recording deletion history (FIRST - critical for abuse prevention)...');
 
@@ -188,11 +190,28 @@ Deno.serve(async (req) => {
       const { data: userData } = await supabase.auth.admin.getUserById(user_id);
       userEmail = userData?.user?.email || null;
 
+      // Get trial information to track usage
+      const { data: trialData } = await supabase
+        .from('user_trials')
+        .select('trial_status, trial_start_date, trial_end_date')
+        .eq('user_id', user_id)
+        .single();
+
+      if (trialData) {
+        trialUsed = true; // User had a trial
+        // Check if they used the full 7 days or converted to paid
+        trialCompleted = trialData.trial_status === 'expired' || 
+                        trialData.trial_status === 'converted_to_paid' ||
+                        new Date(trialData.trial_end_date) <= new Date();
+      }
+
       if (userEmail) {
         await supabase.rpc('record_account_deletion', {
           p_user_id: user_id,
           p_email: userEmail,
-          p_reason: 'immediate_deletion'
+          p_reason: 'immediate_deletion',
+          p_trial_used: trialUsed,
+          p_trial_completed: trialCompleted
         });
         console.log('✅ Deletion history recorded - abuse prevention secured');
       } else {

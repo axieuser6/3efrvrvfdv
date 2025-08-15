@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
-import { Play, Loader2, Gift } from 'lucide-react';
+import { useUserAccess } from '../hooks/useUserAccess';
+import { Play, Loader2, Gift, AlertTriangle, Crown } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 interface StartTrialButtonProps {
   onTrialStarted?: () => void;
@@ -10,8 +12,66 @@ interface StartTrialButtonProps {
 
 export function StartTrialButton({ onTrialStarted, className = '' }: StartTrialButtonProps) {
   const { user } = useAuth();
+  const { accessStatus } = useUserAccess();
   const [isStarting, setIsStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [returningUserStatus, setReturningUserStatus] = useState<{
+    has_used_trial: boolean;
+    trial_completed: boolean;
+    requires_subscription: boolean;
+  } | null>(null);
+
+  // Check if user is returning and has used trial
+  React.useEffect(() => {
+    const checkTrialHistory = async () => {
+      if (!user?.email) return;
+
+      try {
+        const { data } = await supabase.rpc('check_email_trial_history', {
+          p_email: user.email
+        });
+
+        if (data && data.length > 0) {
+          setReturningUserStatus(data[0]);
+        }
+      } catch (error) {
+        console.error('Error checking trial history:', error);
+      }
+    };
+
+    checkTrialHistory();
+  }, [user?.email]);
+
+  // Don't show trial button if user has already used their trial
+  if (returningUserStatus?.has_used_trial && returningUserStatus?.trial_completed) {
+    return (
+      <div className={`${className} text-center`}>
+        <div className="bg-orange-50 border-2 border-orange-200 rounded-lg p-6">
+          <div className="text-orange-600 mb-3">
+            <AlertTriangle className="w-8 h-8 mx-auto" />
+          </div>
+          <h3 className="text-lg font-bold text-orange-800 mb-2 uppercase tracking-wide">
+            TRIAL ALREADY USED
+          </h3>
+          <p className="text-orange-700 text-sm mb-4">
+            You've already used your 7-day free trial. Subscribe to access premium features.
+          </p>
+          <Link
+            to="/products"
+            className="inline-flex items-center gap-2 bg-orange-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-orange-700 transition-colors uppercase tracking-wide"
+          >
+            <Crown className="w-4 h-4" />
+            SUBSCRIBE NOW
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't show if user already has access
+  if (accessStatus?.has_access) {
+    return null;
+  }
 
   const handleStartTrial = async () => {
     if (!user) {
