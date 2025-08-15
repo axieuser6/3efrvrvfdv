@@ -28,49 +28,20 @@ export function useProductConfig(): UseProductConfigReturn {
       try {
         console.log('🛍️ Fetching product configuration...');
         
-        const { data, error: functionError } = await supabase.functions.invoke('get-product-config');
-        
-        if (functionError) {
-          throw new Error(`Function error: ${functionError.message}`);
-        }
-
-        if (!data?.success) {
-          throw new Error(data?.message || 'Failed to fetch product configuration');
-        }
-
-      // Fallback to hardcoded config if Edge Function fails
-      const fallbackConfig = {
-        limited_time: {
-          product_id: 'prod_fallback_limited',
-          price_id: 'price_fallback_limited',
-        },
-        pro: {
-          product_id: 'prod_fallback_pro', 
-          price_id: 'price_fallback_pro',
-        }
-      };
-      
-      try {
-        const response = await fetch(`${supabaseUrl}/functions/v1/get-product-config`, {
-          headers: {
-            'Authorization': `Bearer ${supabaseAnonKey}`,
-            'Content-Type': 'application/json',
+        // Use environment variables directly instead of Edge Function
+        const envConfig = {
+          limited_time: {
+            product_id: import.meta.env.VITE_STRIPE_LIMITED_TIME_PRODUCT_ID || 'prod_Ss7w3IYMyDloAF',
+            price_id: import.meta.env.VITE_STRIPE_LIMITED_TIME_PRICE_ID || 'price_1RwNgiBacFXEnBmNu1PwJnYK',
           },
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success && data.config) {
-            setConfig(data.config);
-            return;
+          pro: {
+            product_id: import.meta.env.VITE_STRIPE_PRO_PRODUCT_ID || 'prod_SqmQgEphHNdPVG',
+            price_id: import.meta.env.VITE_STRIPE_PRO_PRICE_ID || 'price_1Rv4rDBacFXEnBmNDMrhMqOH',
           }
-        }
-      } catch (fetchError) {
-        console.warn('Product config fetch failed, using fallback:', fetchError);
-      }
-      
-      // Use fallback config
-      setConfig(fallbackConfig);
+        };
+        
+        console.log('✅ Using environment variables for product config:', envConfig);
+        setConfig(envConfig);
       } catch (err) {
         console.warn('Using fallback product config due to error:', err);
         // Use fallback config even on error

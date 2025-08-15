@@ -69,9 +69,18 @@ export function ProductsPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12 max-w-5xl mx-auto">
           {createStripeProducts(productConfig).map((product) => {
-            const isCurrentPlan = subscription?.price_id === product.priceId && 
-                                 (subscription?.subscription_status === 'active' || 
-                                  subscription?.subscription_status === 'trialing');
+            // Enhanced current plan detection
+            const isCurrentPlan = (
+              // Direct price ID match with active subscription
+              (subscription?.price_id === product.priceId && 
+               (subscription?.subscription_status === 'active' || subscription?.subscription_status === 'trialing')) ||
+              // Standard plan detection (no subscription or paused)
+              (product.id === 'standard_product' && 
+               (!subscription?.subscription_status || subscription?.subscription_status === 'canceled' || !subscription?.price_id)) ||
+              // Admin override for Pro plan
+              (product.priceId === 'price_1Rv4rDBacFXEnBmNDMrhMqOH' && 
+               (accessStatus?.access_type === 'paid_subscription' || isPaidUser))
+            );
 
             return (
               <ProductCard

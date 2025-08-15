@@ -225,7 +225,7 @@ export function ProductCard({ product, isCurrentPlan = false }: ProductCardProps
               PROCESSING...
             </div>
           ) : isCurrentPlan ? (
-            isStandardProduct ? 'ACCOUNT PAUSED' : 'ACTIVE PLAN'
+            isStandardProduct ? 'CURRENT PLAN' : 'CURRENT PLAN'
           ) : (
             isStandardProduct ? 'PAUSE SUBSCRIPTION' : `GET ${product.name.toUpperCase()}`
           )}
