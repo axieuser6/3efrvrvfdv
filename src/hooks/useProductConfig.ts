@@ -71,10 +71,21 @@ export function useProductConfig(): UseProductConfigReturn {
       
       // Use fallback config
       setConfig(fallbackConfig);
+      } catch (err) {
+        console.warn('Using fallback product config due to error:', err);
+        // Use fallback config even on error
+        const fallbackConfig = {
+          limited_time: {
+            product_id: 'prod_fallback_limited',
+            price_id: 'price_fallback_limited',
+          },
+          pro: {
+            product_id: 'prod_fallback_pro', 
+            price_id: 'price_fallback_pro',
+          }
         };
-      console.warn('Using fallback product config due to error:', err);
-      // Use fallback config even on error
-      setConfig(fallbackConfig);
+        setConfig(fallbackConfig);
+      } finally {
         setLoading(false);
       }
     }
