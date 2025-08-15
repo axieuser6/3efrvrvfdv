@@ -17,20 +17,20 @@ export const stripeProducts: StripeProduct[] = [
     price: 0.00,
   },
   {
-    id: import.meta.env.VITE_STRIPE_PRO_PRODUCT_ID || 'prod_SqmQgEphHNdPVG',
-    priceId: import.meta.env.VITE_STRIPE_PRO_PRICE_ID || 'price_1Rv4rDBacFXEnBmNDMrhMqOH',
+    id: import.meta.env.VITE_STRIPE_PRO_PRODUCT_ID || 'YOUR_STRIPE_PRODUCT_ID',
+    priceId: import.meta.env.VITE_STRIPE_PRO_PRICE_ID || 'YOUR_STRIPE_PRICE_ID',
     name: 'Go Pro',
-    description: 'Advanced AI workflows with 7-day free trial',
+    description: 'Advanced AI workflows with unlimited access',
     mode: 'subscription',
     price: 45.00,
   },
   {
-    id: 'prod_SrTryIZ3wixoiM',
-    priceId: 'price_1RvktTBacFXEnBmNbd5A5cHB',
-    name: 'Test - 1 SEK',
-    description: 'Test payment for development (1 SEK)',
+    id: 'YOUR_TEST_PRODUCT_ID',
+    priceId: 'YOUR_TEST_PRICE_ID',
+    name: 'Test Product',
+    description: 'Test payment for development',
     mode: 'subscription',
-    price: 1.00,
+    price: 5.00,
   },
 ];
 
