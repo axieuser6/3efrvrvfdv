@@ -14,11 +14,13 @@ import { AccountDeletionCountdown } from '../components/AccountDeletionCountdown
 import { ReturningUserStatus } from '../components/ReturningUserStatus';
 import { CreateAxieStudioButton } from '../components/CreateAxieStudioButton';
 import { LaunchStudioOnlyButton } from '../components/LaunchStudioOnlyButton';
+import { StartTrialButton } from '../components/StartTrialButton';
 import { TeamCreationPrompt } from '../components/TeamCreationPrompt';
 import { TeamDashboardSection } from '../components/TeamDashboardSection';
 
 import { Link } from 'react-router-dom';
 import { Settings, LogOut, ShoppingBag, Zap, Shield, AlertTriangle } from 'lucide-react';
+import { Gift } from 'lucide-react';
 
 export function DashboardPage() {
   const { user, signOut } = useAuth();
@@ -288,30 +290,47 @@ export function DashboardPage() {
                   </div>
                 </div>
               ) : (
-                <div className="flex items-center gap-4 p-6 border-2 border-orange-600 rounded-none bg-orange-50">
-                  <div className="w-12 h-12 bg-orange-600 text-white flex items-center justify-center rounded-none">
-                    <AlertTriangle className="w-6 h-6" />
+                <div className="space-y-6">
+                  {/* Start Free Trial Section */}
+                  <div className="relative group">
+                    <div className="relative flex items-center gap-6 p-6 border-2 border-blue-600 rounded-none bg-gradient-to-r from-blue-50 to-green-50 hover:from-blue-100 hover:to-green-100 transition-all duration-300 hover:shadow-[8px_8px_0px_0px_rgba(37,99,235,1)] hover:translate-x-[-4px] hover:translate-y-[-4px]">
+                      <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-green-600 text-white flex items-center justify-center rounded-none">
+                        <Gift className="w-6 h-6" />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="text-lg font-bold text-blue-800 uppercase tracking-wide mb-1">
+                          🎁 START YOUR FREE TRIAL
+                        </h4>
+                        <p className="text-blue-700 text-sm">
+                          Get 7 days of full access to all premium AI workflow features.
+                        </p>
+                      </div>
+                      <div className="min-w-[200px]">
+                        <StartTrialButton />
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex-1">
-                    <h4 className="font-bold text-orange-800 uppercase tracking-wide">
-                      {(accessStatus?.trial_status === 'expired' || accessStatus?.trial_status === 'scheduled_for_deletion')
-                        ? '❌ TRIAL EXPIRED'
-                        : '⏳ UPGRADE REQUIRED'
-                      }
-                    </h4>
-                    <p className="text-sm text-orange-700">
-                      {(accessStatus?.trial_status === 'expired' || accessStatus?.trial_status === 'scheduled_for_deletion')
-                        ? 'Upgrade to Pro to restore access'
-                        : 'Requires active subscription'
-                      }
-                    </p>
+
+                  {/* Alternative: Upgrade Section */}
+                  <div className="flex items-center gap-4 p-6 border-2 border-orange-600 rounded-none bg-orange-50">
+                    <div className="w-12 h-12 bg-orange-600 text-white flex items-center justify-center rounded-none">
+                      <AlertTriangle className="w-6 h-6" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-bold text-orange-800 uppercase tracking-wide">
+                        OR UPGRADE DIRECTLY
+                      </h4>
+                      <p className="text-sm text-orange-700">
+                        Skip the trial and get immediate premium access
+                      </p>
+                    </div>
+                    <Link
+                      to="/products"
+                      className="px-4 py-2 bg-orange-600 text-white font-bold uppercase tracking-wide rounded-none hover:bg-orange-700 transition-colors"
+                    >
+                      VIEW PLANS
+                    </Link>
                   </div>
-                  <Link
-                    to="/products"
-                    className="px-4 py-2 bg-orange-600 text-white font-bold uppercase tracking-wide rounded-none hover:bg-orange-700 transition-colors"
-                  >
-                    UPGRADE
-                  </Link>
                 </div>
               )}
 
