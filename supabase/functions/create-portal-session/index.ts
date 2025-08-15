@@ -125,7 +125,7 @@ serve(async (req) => {
       // Create portal session
       const session = await stripe.billingPortal.sessions.create({
         customer: customerData.customer_id,
-        return_url: `${Deno.env.get('FRONTEND_URL') || 'https://authr.axiestudio.se'}/dashboard`,
+        return_url: 'https://authr.axiestudio.se/dashboard',
         configuration: configId
       });
 
