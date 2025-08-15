@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Clock, AlertCircle } from 'lucide-react';
+import { Clock, AlertCircle, CheckCircle } from 'lucide-react';
 
 interface TrialTimerProps {
   trialEndDate: string | null;

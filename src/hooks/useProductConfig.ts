@@ -38,27 +38,43 @@ export function useProductConfig(): UseProductConfigReturn {
           throw new Error(data?.message || 'Failed to fetch product configuration');
         }
 
-        console.log('✅ Product configuration loaded:', data.config);
-        setConfig(data.config);
-        setError(null);
-      } catch (err) {
-        console.error('❌ Error fetching product config:', err);
-        setError(err instanceof Error ? err.message : 'Unknown error');
-        
-        // Fallback to environment variables if function fails
-        console.log('🔄 Falling back to environment variables...');
-        const fallbackConfig: ProductConfig = {
-          limited_time: {
-            product_id: import.meta.env.VITE_STRIPE_LIMITED_TIME_PRODUCT_ID || 'prod_Ss7w3IYMyDloAF',
-            price_id: import.meta.env.VITE_STRIPE_LIMITED_TIME_PRICE_ID || 'price_1RwNgiBacFXEnBmNu1PwJnYK',
+      // Fallback to hardcoded config if Edge Function fails
+      const fallbackConfig = {
+        limited_time: {
+          product_id: 'prod_fallback_limited',
+          price_id: 'price_fallback_limited',
+        },
+        pro: {
+          product_id: 'prod_fallback_pro', 
+          price_id: 'price_fallback_pro',
+        }
+      };
+      
+      try {
+        const response = await fetch(`${supabaseUrl}/functions/v1/get-product-config`, {
+          headers: {
+            'Authorization': `Bearer ${supabaseAnonKey}`,
+            'Content-Type': 'application/json',
           },
-          pro: {
-            product_id: import.meta.env.VITE_STRIPE_PRO_PRODUCT_ID || 'prod_SqmQgEphHNdPVG',
-            price_id: import.meta.env.VITE_STRIPE_PRO_PRICE_ID || 'price_1Rv4rDBacFXEnBmNDMrhMqOH',
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.config) {
+            setConfig(data.config);
+            return;
           }
+        }
+      } catch (fetchError) {
+        console.warn('Product config fetch failed, using fallback:', fetchError);
+      }
+      
+      // Use fallback config
+      setConfig(fallbackConfig);
         };
-        setConfig(fallbackConfig);
-      } finally {
+      console.warn('Using fallback product config due to error:', err);
+      // Use fallback config even on error
+      setConfig(fallbackConfig);
         setLoading(false);
       }
     }
