@@ -26,9 +26,18 @@ function App() {
   if (loading) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="flex items-center gap-3">
-          <Loader2 className="w-6 h-6 animate-spin text-black" />
-          <span className="text-black">Loading...</span>
+        <div className="text-center">
+          <div className="w-16 h-16 bg-white border-2 border-black flex items-center justify-center rounded-none mb-4 mx-auto">
+            <img
+              src="https://www.axiestudio.se/Axiestudiologo.jpg"
+              alt="Axie Studio"
+              className="w-12 h-12 object-contain"
+            />
+          </div>
+          <div className="flex items-center gap-3 justify-center">
+            <Loader2 className="w-6 h-6 animate-spin text-black" />
+            <span className="text-black font-bold uppercase tracking-wide">LOADING AXIE STUDIO...</span>
+          </div>
         </div>
       </div>
     );

@@ -36,12 +36,21 @@ export function useSubscription() {
 
         console.log('🔄 Fetching subscription for user:', user.id);
 
-        // BULLETPROOF: Use fixed view with user_id column
-        const { data, error: fetchError } = await supabase
-          .from('stripe_user_subscriptions')
-          .select('*')
-          .eq('user_id', user.id)
-          .maybeSingle();
+        // Try the view first, fallback to base tables if not available
+        let data, fetchError;
+        
+        try {
+          const result = await supabase
+            .from('stripe_user_subscriptions')
+            .select('*')
+            .eq('user_id', user.id)
+            .maybeSingle();
+          data = result.data;
+          fetchError = result.error;
+        } catch (viewError) {
+          console.warn('View not available, using fallback:', viewError);
+          fetchError = viewError;
+        }
 
         if (data && !fetchError) {
           console.log('✅ Successfully fetched from fixed stripe_user_subscriptions view:', data);

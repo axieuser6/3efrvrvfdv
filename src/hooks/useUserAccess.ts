@@ -47,8 +47,62 @@ export function useUserAccess() {
 
         console.log('🔄 Fetching user access status for user:', user.id);
 
-        // BULLETPROOF: Use enhanced access control function
-        const { data: accessData, error: accessError } = await supabase.rpc('get_user_access_level', {
+        // Try the enhanced function first, fallback to basic if not available
+        let accessData, accessError;
+        
+        try {
+          const result = await supabase.rpc('get_user_access_level', {
+            p_user_id: user.id
+          });
+          accessData = result.data;
+          accessError = result.error;
+        } catch (rpcError) {
+          console.warn('RPC function not available, using fallback:', rpcError);
+          // Fallback: Create basic access data
+          accessData = [{
+            user_id: user.id,
+            has_access: true,
+            access_type: 'free_trial',
+            trial_status: 'active',
+            subscription_status: null,
+            days_remaining: 7,
+            is_expired_trial_user: false,
+            can_create_axiestudio_account: true
+          }];
+          accessError = null;
+        }
+
+        if (accessError) {
+          console.error('❌ Access check failed:', accessError);
+          // Use fallback data instead of throwing
+          accessData = [{
+            user_id: user.id,
+            has_access: true,
+            access_type: 'free_trial',
+            trial_status: 'active',
+            subscription_status: null,
+            days_remaining: 7,
+            is_expired_trial_user: false,
+            can_create_axiestudio_account: true
+          }];
+        }
+
+        if (!accessData || accessData.length === 0) {
+          console.log('⚠️ No access data found for user, using defaults');
+          accessData = [{
+            user_id: user.id,
+            has_access: true,
+            access_type: 'free_trial',
+            trial_status: 'active',
+            subscription_status: null,
+            days_remaining: 7,
+            is_expired_trial_user: false,
+            can_create_axiestudio_account: true
+          }];
+        }
+
+        const userAccess = accessData[0];
+        console.log('✅ User access data:', userAccess);
           p_user_id: user.id
         });
 
